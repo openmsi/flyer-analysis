@@ -1,8 +1,1 @@
-matplotlib==3.6.2
-numpy==1.24.1
-opencv-python==4.7.0.68
-scikit-image==0.19.3
-scipy==1.10.0
-imageio==2.23.0
-pytest-shutil==1.7.0
-pandas==1.5.2
+.
