@@ -1,5 +1,5 @@
 # flyer-detection
-Repo containing the flyer-detection framework along with a Python notebook to run it
+Repo containing the flyerdetection framework along with a Python notebook to run it
 
 # Installation
 Create and activate a new conda environment:

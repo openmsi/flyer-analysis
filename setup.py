@@ -9,8 +9,8 @@ with open('README.md', 'r') as readme :
         long_description+=line
 
 setupkwargs = dict(
-    name='flyer-detection',
-    packages=setuptools.find_packages(include=['flyer-detection*']),
+    name='flyerdetection',
+    packages=setuptools.find_packages(include=['flyerdetection*']),
     include_package_data=True,
     version=version,
     description='''Python application for detecting and analyzing flyer properties in 
@@ -22,7 +22,8 @@ setupkwargs = dict(
     download_url=f'https://github.com/aki-au/flyer-detection/archive/refs/tags/v{version}.tar.gz',
     license='GNU GPLv3',
     entry_points = {
-        'console_scripts' : [],
+        'console_scripts' : ['FlyerAnalysisStreamProcessor=flyerdetection.flyer_analysis_stream_processor:main',
+                            ],
     },
     python_requires='>=3.9',
     install_requires=['imageio>=2.23.0',
