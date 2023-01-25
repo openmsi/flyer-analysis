@@ -35,6 +35,7 @@ class flyer_characteristics():
     flyer_column -> The column numbers containing the values used for the Least-Squares fit
   '''
   def __init__(self):
+    self.exit_code=None
     self.radius=None
     self.center_row=None
     self.center_column=None
@@ -85,6 +86,7 @@ class Flyer_Detection():
     fc.root_loc=im_loc
     try:
       if self.check_blank_image(img):
+        fc.exit_code=1
         fc.radius=0
         return fc
       #Find the points where the threshold has identified the flyer points
@@ -154,6 +156,7 @@ class Flyer_Detection():
       Ri_2       = calc_R(*center_2.x)
       R_2        = Ri_2.mean()
       if R_2>500 or R_2<50:
+        fc.exit_code=2
         fc.radius=0
         return fc
       fc.radius=R_2
@@ -177,7 +180,9 @@ class Flyer_Detection():
       image= image.astype(np.uint8)
       imageio.imwrite(fc.newimg_loc,image)
     except:
+      fc.exit_code=3
       fc.radius=0
+    fc.exit_code=0
     return fc
   #Code to get the final filtered Image
   def filter_image(self,img):
