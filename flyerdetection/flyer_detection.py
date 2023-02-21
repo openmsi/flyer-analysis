@@ -87,7 +87,6 @@ class Flyer_Detection():
     try:
       if self.check_blank_image(img):
         fc.exit_code=1
-        fc.radius=0
         return fc
       #Find the points where the threshold has identified the flyer points
       x,y=np.where(img==255)
@@ -157,7 +156,6 @@ class Flyer_Detection():
       R_2        = Ri_2.mean()
       if R_2>max_radius or R_2<min_radius:
         fc.exit_code=2
-        fc.radius=0
         return fc
       fc.radius=R_2
       fc.center_row=xc_2

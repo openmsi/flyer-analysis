@@ -35,6 +35,7 @@ setupkwargs = dict(
                       'pytest-shutil>=1.7.0',
                       'scikit-image>=0.19.3',
                       'scipy>=1.10.0',
+                      'sqlalchemy>=2.0.4',
                      ],
     extras_require = {'dev': ['twine',
                                 ],
