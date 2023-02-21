@@ -27,7 +27,15 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
             analyzer = Flyer_Detection()
             img = np.asarray(Image.open(BytesIO(datafile.bytestring)))
             filtered_image=analyzer.filter_image(img) 
-            data = vars(analyzer.radius_from_lslm(filtered_image,datafile.relative_filepath,self._output_dir))
+            result = analyzer.radius_from_lslm(
+                filtered_image,
+                datafile.relative_filepath,
+                self._output_dir,
+                min_radius=0,
+                max_radius=np.inf,
+                save_output_file=False,
+            )
+            data = vars(result)
             data_frame = pd.DataFrame([data])
             with lock :
                 if self._output_file.is_file() :

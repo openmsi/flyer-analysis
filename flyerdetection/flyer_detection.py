@@ -42,7 +42,7 @@ class flyer_characteristics():
     self.leading_row=None
     self.flyer_row=None
     self.flyer_column=None
-    self.root_loc=None
+    self.rel_filepath=None
     self.newimg_loc=None
     self.tilt=None
 
@@ -81,9 +81,9 @@ class Flyer_Detection():
     return np.any(img[img.shape[0]-1])
 
   #Code to Find Radius
-  def radius_from_lslm(self,img,im_loc,output_dir):
+  def radius_from_lslm(self,img,im_loc,output_dir,min_radius=50,max_radius=500,save_output_file=True):
     fc=flyer_characteristics()
-    fc.root_loc=im_loc
+    fc.rel_filepath=im_loc
     try:
       if self.check_blank_image(img):
         fc.exit_code=1
@@ -155,7 +155,7 @@ class Flyer_Detection():
       #Calculating the radius of the circle
       Ri_2       = calc_R(*center_2.x)
       R_2        = Ri_2.mean()
-      if R_2>500 or R_2<50:
+      if R_2>max_radius or R_2<min_radius:
         fc.exit_code=2
         fc.radius=0
         return fc
@@ -174,14 +174,15 @@ class Flyer_Detection():
       image[x, y] = 256
 
       # Putting the new images into a file
-      fc.newimg_loc=output_dir+'/'+im_loc[im_loc.rfind('/')+1:]
-      image=(image-np.min(image))/(np.max(image)-np.min(image))
-      image = 255 * image # Now scale by 255
-      image= image.astype(np.uint8)
-      imageio.imwrite(fc.newimg_loc,image)
+      if save_output_file :
+        fc.newimg_loc=output_dir+'/'+im_loc[im_loc.rfind('/')+1:]
+        image=(image-np.min(image))/(np.max(image)-np.min(image))
+        image = 255 * image # Now scale by 255
+        image= image.astype(np.uint8)
+        imageio.imwrite(fc.newimg_loc,image)
     except:
       fc.exit_code=3
-      fc.radius=0
+      return fc
     fc.exit_code=0
     return fc
   #Code to get the final filtered Image
