@@ -42,7 +42,7 @@ class flyer_characteristics():
     self.leading_row=None
     self.flyer_row=None
     self.flyer_column=None
-    self.root_loc=None
+    self.rel_filepath=None
     self.newimg_loc=None
     self.tilt=None
 
@@ -81,13 +81,12 @@ class Flyer_Detection():
     return np.any(img[img.shape[0]-1])
 
   #Code to Find Radius
-  def radius_from_lslm(self,img,im_loc,output_dir):
+  def radius_from_lslm(self,img,im_loc,output_dir,min_radius=50,max_radius=500,save_output_file=True):
     fc=flyer_characteristics()
-    fc.root_loc=im_loc
+    fc.rel_filepath=im_loc
     try:
       if self.check_blank_image(img):
         fc.exit_code=1
-        fc.radius=0
         return fc
       #Find the points where the threshold has identified the flyer points
       x,y=np.where(img==255)
@@ -141,12 +140,12 @@ class Flyer_Detection():
       #I have written down the equation in the comments the starting point for Coope's method.
       #Code for the least squares 
       def calc_R(xc, yc):
-          #2 Xc X + 2 Yc Y + R² - Xc² - Yc² = X² + Y²
-          return np.sqrt((x-xc)**2 + (y-yc)**2)
+        #2 Xc X + 2 Yc Y + R² - Xc² - Yc² = X² + Y²
+        return np.sqrt((x-xc)**2 + (y-yc)**2)
 
       def f_2(c):
-          Ri = calc_R(*c)
-          return Ri - Ri.mean()
+        Ri = calc_R(*c)
+        return Ri - Ri.mean()
       #Using Scipy's Least Squares Optimization method to find the center of the circle
       center_estimate = x_m,y_m
       center_2 = optimize.least_squares(f_2, center_estimate, method='lm')
@@ -155,9 +154,8 @@ class Flyer_Detection():
       #Calculating the radius of the circle
       Ri_2       = calc_R(*center_2.x)
       R_2        = Ri_2.mean()
-      if R_2>500 or R_2<50:
+      if R_2>max_radius or R_2<min_radius:
         fc.exit_code=2
-        fc.radius=0
         return fc
       fc.radius=R_2
       fc.center_row=xc_2
@@ -174,14 +172,15 @@ class Flyer_Detection():
       image[x, y] = 256
 
       # Putting the new images into a file
-      fc.newimg_loc=output_dir+'/'+im_loc[im_loc.rfind('/')+1:]
-      image=(image-np.min(image))/(np.max(image)-np.min(image))
-      image = 255 * image # Now scale by 255
-      image= image.astype(np.uint8)
-      imageio.imwrite(fc.newimg_loc,image)
+      if save_output_file :
+        fc.newimg_loc=output_dir+'/'+im_loc[im_loc.rfind('/')+1:]
+        image=(image-np.min(image))/(np.max(image)-np.min(image))
+        image = 255 * image # Now scale by 255
+        image= image.astype(np.uint8)
+        imageio.imwrite(fc.newimg_loc,image)
     except:
       fc.exit_code=3
-      fc.radius=0
+      return fc
     fc.exit_code=0
     return fc
   #Code to get the final filtered Image
@@ -206,8 +205,8 @@ class Flyer_Detection():
     result = np.zeros((labels.shape), np.uint8)
     #Choosing the Size of the connected components to keep
     for i in range(0, nlabels - 1):
-        if areas[i] >= 200: #SIze (this can be changed but currently, this is what worked for me)
-            result[labels == i + 1] = 255
+      if areas[i] >= 200: #SIze (this can be changed but currently, this is what worked for me)
+        result[labels == i + 1] = 255
     #Cropping off the bottom date
     bottom=int(17*np.floor(result.shape[0]/18))
     result=result[:bottom]
@@ -231,7 +230,7 @@ class Flyer_Detection():
         break
     self.df=pd.DataFrame(data)
     if len(os.listdir(output_dir)) == 0:
-            os.remove(output_dir)
+      os.remove(output_dir)
 
   def create_csv_from_df(self,output_location):
     self.df.to_csv(output_location)
