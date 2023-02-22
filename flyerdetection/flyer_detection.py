@@ -140,12 +140,12 @@ class Flyer_Detection():
       #I have written down the equation in the comments the starting point for Coope's method.
       #Code for the least squares 
       def calc_R(xc, yc):
-          #2 Xc X + 2 Yc Y + R² - Xc² - Yc² = X² + Y²
-          return np.sqrt((x-xc)**2 + (y-yc)**2)
+        #2 Xc X + 2 Yc Y + R² - Xc² - Yc² = X² + Y²
+        return np.sqrt((x-xc)**2 + (y-yc)**2)
 
       def f_2(c):
-          Ri = calc_R(*c)
-          return Ri - Ri.mean()
+        Ri = calc_R(*c)
+        return Ri - Ri.mean()
       #Using Scipy's Least Squares Optimization method to find the center of the circle
       center_estimate = x_m,y_m
       center_2 = optimize.least_squares(f_2, center_estimate, method='lm')
@@ -205,8 +205,8 @@ class Flyer_Detection():
     result = np.zeros((labels.shape), np.uint8)
     #Choosing the Size of the connected components to keep
     for i in range(0, nlabels - 1):
-        if areas[i] >= 200: #SIze (this can be changed but currently, this is what worked for me)
-            result[labels == i + 1] = 255
+      if areas[i] >= 200: #SIze (this can be changed but currently, this is what worked for me)
+        result[labels == i + 1] = 255
     #Cropping off the bottom date
     bottom=int(17*np.floor(result.shape[0]/18))
     result=result[:bottom]
@@ -230,7 +230,7 @@ class Flyer_Detection():
         break
     self.df=pd.DataFrame(data)
     if len(os.listdir(output_dir)) == 0:
-            os.remove(output_dir)
+      os.remove(output_dir)
 
   def create_csv_from_df(self,output_location):
     self.df.to_csv(output_location)

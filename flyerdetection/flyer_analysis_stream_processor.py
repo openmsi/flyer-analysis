@@ -17,12 +17,13 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
 
     def __init__(self,config_file,topic_name,*,db_connection_str=None,drop_existing=False,**other_kwargs) :
         super().__init__(config_file,topic_name,**other_kwargs)
-        #create either an engine to interact with a DB, or store the path to the output file
+        #either create an engine to interact with a DB, or store the path to the output file
         self._engine = None
         self._output_file = None
         if db_connection_str is not None :
             try :
                 self._engine = create_engine(db_connection_str)
+                self._session = sessionmaker(bind=self._engine)
             except Exception as exc :
                 errmsg = f'ERROR: failed to connect to database using connection string {db_connection_str}! '
                 errmsg+= 'Will re-reraise original exception.'
@@ -94,19 +95,18 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
         """
         Write a given result to the output CSV file
         """
+        entry = FlyerAnalysisEntry(
+            result.rel_filepath,
+            result.exit_code,
+            result.radius,
+            result.tilt,
+            result.leading_row,
+            result.center_row,
+            result.center_column,
+        )
         with lock :
-            Session = sessionmaker(bind=self._engine)
             with self._engine.connect() as connection:
-                with Session(bind=connection) as session:
-                    entry = FlyerAnalysisEntry(
-                        result.rel_filepath,
-                        result.exit_code,
-                        result.radius,
-                        result.tilt,
-                        result.leading_row,
-                        result.center_row,
-                        result.center_column,
-                    )
+                with self._session(bind=connection) as session:
                     session.add(entry)
                     session.commit()
 
