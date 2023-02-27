@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from openmsistream import DataFileStreamProcessor
 from .orm_base import ORMBase
 from .flyer_analysis_entry import FlyerAnalysisEntry
-from .flyer_detection import Flyer_Detection
+from .flyer_detection import Flyer_Detection, flyer_characteristics
 
 class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
     """
@@ -45,17 +45,24 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
         if not datafile.filename.endswith('.bmp') :
             return None
         try :
+            result = None
             analyzer = Flyer_Detection()
             img = np.asarray(Image.open(BytesIO(datafile.bytestring)))
-            filtered_image=analyzer.filter_image(img) 
-            result = analyzer.radius_from_lslm(
-                filtered_image,
-                datafile.relative_filepath,
-                self._output_dir,
-                min_radius=0,
-                max_radius=np.inf,
-                save_output_file=False,
-            )
+            #filtering the image sometimes fails, use a special exit code in this case
+            try :
+                filtered_image=analyzer.filter_image(img)
+            except Exception as exc :
+                result = flyer_characteristics()
+                result.exit_code=7
+            if not result :
+                result = analyzer.radius_from_lslm(
+                    filtered_image,
+                    datafile.relative_filepath,
+                    self._output_dir,
+                    min_radius=0,
+                    max_radius=np.inf,
+                    save_output_file=False,
+                )
             if self._output_file is not None :
                 self.__write_result_to_csv(result,lock)
             elif self._engine is not None :
@@ -151,9 +158,9 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
         msg = f'{n_read} total messages were consumed'
         if len(processed_filepaths)>0 :
             msg+=f', {n_processed} messages were successfully processed,'
-            msg+=f' and the following {len(processed_filepaths)} plot file'
-            msg+=' was' if len(processed_filepaths)==1 else 's were'
-            msg+=' created'
+            msg+=f' and the following {len(processed_filepaths)} file'
+            msg+=' ' if len(processed_filepaths)==1 else 's '
+            msg+=f'had analysis results added to {args.db_connection_str}'
         else :
             msg+=f' and {n_processed} messages were successfully processed'
         msg+=f' from {run_start} to {run_stop}'
