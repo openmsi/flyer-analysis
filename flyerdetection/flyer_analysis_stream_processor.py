@@ -15,14 +15,15 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
     A class to run flyer analysis for all .bmp images in a topic and add their results to an ouput file
     """
 
-    def __init__(self,config_file,topic_name,*,db_connection_str=None,drop_existing=False,**other_kwargs) :
+    def __init__(self,config_file,topic_name,*,
+                 db_connection_str=None,drop_existing=False,verbose=False,**other_kwargs) :
         super().__init__(config_file,topic_name,**other_kwargs)
         #either create an engine to interact with a DB, or store the path to the output file
         self._engine = None
         self._output_file = None
         if db_connection_str is not None :
             try :
-                self._engine = create_engine(db_connection_str)
+                self._engine = create_engine(db_connection_str,echo=verbose)
                 self._session = sessionmaker(bind=self._engine)
             except Exception as exc :
                 errmsg = f'ERROR: failed to connect to database using connection string {db_connection_str}! '
@@ -122,11 +123,14 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
                     Output will go in a .csv file if this argument is not given.''')
         parser.add_argument('--drop_existing',action='store_true',
             help='Add this flag to drop and recreate any existing table in the database on startup')
+        parser.add_argument('--verbose','-v',action='store_true',
+            help='Add this flag to use a verbose SQLAlchemy engine')
         args = parser.parse_args(args=args)
         #make the stream processor
         flyer_analysis = cls(args.config,args.topic_name,
                              db_connection_str=args.db_connection_str,
                              drop_existing=args.drop_existing,
+                             verbose=args.verbose,
                              output_dir=args.output_dir,
                              n_threads=args.n_threads,
                              update_secs=args.update_seconds,
