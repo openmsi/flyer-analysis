@@ -119,7 +119,7 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
             with lock :
                 self._sessions_by_thread_ident[thread_id] = self._scoped_session()
         self._sessions_by_thread_ident[thread_id].add(entry)
-        self._sessions_by_thread_ident[thread_id].commit(entry)
+        self._sessions_by_thread_ident[thread_id].commit()
 
     @classmethod
     def run_from_command_line(cls,args=None) :
