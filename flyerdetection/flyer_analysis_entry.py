@@ -12,7 +12,7 @@ class FlyerAnalysisEntry(ORMBase) :
 
     __tablename__ = FLYER_ANALYSIS_TABLE_NAME
 
-    ID            = mapped_column(Identity(1,1),primary_key=True)   
+    ID            = mapped_column(Integer,Identity(1,1),primary_key=True)   
     rel_filepath  = mapped_column(Text,unique=True,nullable=False)
     exit_code     = mapped_column(Integer,nullable=False)
     radius        = mapped_column(Double)
