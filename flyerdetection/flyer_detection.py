@@ -171,6 +171,9 @@ class Flyer_Detection():
       fc.leading_row=max(x)
       #Finding the tilt using arctan and slope value. For a circle, the slope is: -(x-xc)/(y-yc)
       h,v=df.iloc[int(np.ceil(len(df)/2))]
+      if (h-xc_2)==0 :
+        fc.exit_code=6
+        return fc
       fc.tilt=np.arctan((v-yc_2)/(h-xc_2))
       rr, cc = draw.disk((xc_2, yc_2), R_2,
                         shape=temp.shape)
@@ -187,7 +190,7 @@ class Flyer_Detection():
         image= image.astype(np.uint8)
         imageio.imwrite(fc.newimg_loc,image)
     except:
-      fc.exit_code=6
+      fc.exit_code=7
       return fc
     fc.exit_code=0
     return fc

@@ -1,10 +1,10 @@
 #imports
-import datetime
+import datetime, threading
 from io import BytesIO
 import numpy as np, pandas as pd
 from PIL import Image
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 from openmsistream import DataFileStreamProcessor
 from .orm_base import ORMBase
 from .flyer_analysis_entry import FlyerAnalysisEntry
@@ -24,7 +24,8 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
         if db_connection_str is not None :
             try :
                 self._engine = create_engine(db_connection_str,echo=verbose)
-                self._session = sessionmaker(bind=self._engine)
+                self._scoped_session = scoped_session(sessionmaker(bind=self._engine))
+                self._sessions_by_thread_ident = {}
             except Exception as exc :
                 errmsg = f'ERROR: failed to connect to database using connection string {db_connection_str}! '
                 errmsg+= 'Will re-reraise original exception.'
@@ -53,7 +54,8 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
                 filtered_image=analyzer.filter_image(img)
             except Exception as exc :
                 result = flyer_characteristics()
-                result.exit_code=7
+                result.rel_filepath=datafile.relative_filepath
+                result.exit_code=8
             if not result :
                 result = analyzer.radius_from_lslm(
                     filtered_image,
@@ -101,7 +103,7 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
 
     def __write_result_to_DB(self,result,lock) :
         """
-        Write a given result to the output CSV file
+        Write a given result to the output database
         """
         entry = FlyerAnalysisEntry(
             result.rel_filepath,
@@ -112,11 +114,12 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
             result.center_row,
             result.center_column,
         )
-        with lock :
-            with self._engine.connect() as connection:
-                with self._session(bind=connection) as session:
-                    session.add(entry)
-                    session.commit()
+        thread_id = threading.get_ident()
+        if thread_id not in self._sessions_by_thread_ident :
+            with lock :
+                self._sessions_by_thread_ident[thread_id] = self._scoped_session()
+        self._sessions_by_thread_ident[thread_id].add(entry)
+        self._sessions_by_thread_ident[thread_id].commit(entry)
 
     @classmethod
     def run_from_command_line(cls,args=None) :
