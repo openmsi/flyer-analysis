@@ -24,8 +24,8 @@ class FlyerAnalysisEntry(ORMBase) :
     def __init__(self,rel_filepath,exit_code,radius,tilt,leading_row,center_row,center_column) :
         self.rel_filepath = str(rel_filepath)
         self.exit_code = int(exit_code)
-        self.radius = float(radius)
-        self.tilt = float(tilt)
-        self.leading_row = int(leading_row)
-        self.center_row = float(center_row)
-        self.center_column = float(center_column)
+        self.radius = float(radius) if radius else None
+        self.tilt = float(tilt) if tilt else None
+        self.leading_row = int(leading_row) if leading_row else None
+        self.center_row = float(center_row) if center_row else None
+        self.center_column = float(center_column) if center_column else None
