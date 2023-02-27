@@ -1,5 +1,5 @@
 #imports
-from sqlalchemy import Integer, String, Text, Double, Identity
+from sqlalchemy import Integer, String, Text, Double, Numeric, Identity
 from sqlalchemy.orm import mapped_column, Mapped
 from .orm_base import ORMBase
 
@@ -12,14 +12,14 @@ class FlyerAnalysisEntry(ORMBase) :
 
     __tablename__ = FLYER_ANALYSIS_TABLE_NAME
 
-    ID            = mapped_column(Integer,Identity(1,1),primary_key=True)   
-    rel_filepath  = mapped_column(Text,unique=True,nullable=False)
+    ID            = mapped_column(Integer,primary_key=True)   
+    rel_filepath  = mapped_column(String,unique=True,nullable=False)
     exit_code     = mapped_column(Integer,nullable=False)
-    radius        = mapped_column(Double)
-    tilt          = mapped_column(Double)
-    leading_row   = mapped_column(Double)
-    center_row    = mapped_column(Double)
-    center_column = mapped_column(Double)
+    radius        = mapped_column(Numeric)
+    tilt          = mapped_column(Numeric)
+    leading_row   = mapped_column(Numeric)
+    center_row    = mapped_column(Numeric)
+    center_column = mapped_column(Numeric)
 
     def __init__(self,rel_filepath,exit_code,radius,tilt,leading_row,center_row,center_column) :
         self.rel_filepath = str(rel_filepath)
