@@ -1,29 +1,31 @@
 #imports
-import datetime
+import datetime, threading
 from io import BytesIO
 import numpy as np, pandas as pd
 from PIL import Image
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 from openmsistream import DataFileStreamProcessor
 from .orm_base import ORMBase
 from .flyer_analysis_entry import FlyerAnalysisEntry
-from .flyer_detection import Flyer_Detection
+from .flyer_detection import Flyer_Detection, flyer_characteristics
 
 class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
     """
     A class to run flyer analysis for all .bmp images in a topic and add their results to an ouput file
     """
 
-    def __init__(self,config_file,topic_name,*,db_connection_str=None,drop_existing=False,**other_kwargs) :
+    def __init__(self,config_file,topic_name,*,
+                 db_connection_str=None,drop_existing=False,verbose=False,**other_kwargs) :
         super().__init__(config_file,topic_name,**other_kwargs)
         #either create an engine to interact with a DB, or store the path to the output file
         self._engine = None
         self._output_file = None
         if db_connection_str is not None :
             try :
-                self._engine = create_engine(db_connection_str)
-                self._session = sessionmaker(bind=self._engine)
+                self._engine = create_engine(db_connection_str,echo=verbose)
+                self._scoped_session = scoped_session(sessionmaker(bind=self._engine))
+                self._sessions_by_thread_ident = {}
             except Exception as exc :
                 errmsg = f'ERROR: failed to connect to database using connection string {db_connection_str}! '
                 errmsg+= 'Will re-reraise original exception.'
@@ -44,17 +46,25 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
         if not datafile.filename.endswith('.bmp') :
             return None
         try :
+            result = None
             analyzer = Flyer_Detection()
             img = np.asarray(Image.open(BytesIO(datafile.bytestring)))
-            filtered_image=analyzer.filter_image(img) 
-            result = analyzer.radius_from_lslm(
-                filtered_image,
-                datafile.relative_filepath,
-                self._output_dir,
-                min_radius=0,
-                max_radius=np.inf,
-                save_output_file=False,
-            )
+            #filtering the image sometimes fails, use a special exit code in this case
+            try :
+                filtered_image=analyzer.filter_image(img)
+            except Exception as exc :
+                result = flyer_characteristics()
+                result.rel_filepath=datafile.relative_filepath
+                result.exit_code=8
+            if not result :
+                result = analyzer.radius_from_lslm(
+                    filtered_image,
+                    datafile.relative_filepath,
+                    self._output_dir,
+                    min_radius=0,
+                    max_radius=np.inf,
+                    save_output_file=False,
+                )
             if self._output_file is not None :
                 self.__write_result_to_csv(result,lock)
             elif self._engine is not None :
@@ -93,7 +103,7 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
 
     def __write_result_to_DB(self,result,lock) :
         """
-        Write a given result to the output CSV file
+        Write a given result to the output database
         """
         entry = FlyerAnalysisEntry(
             result.rel_filepath,
@@ -104,11 +114,12 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
             result.center_row,
             result.center_column,
         )
-        with lock :
-            with self._engine.connect() as connection:
-                with self._session(bind=connection) as session:
-                    session.add(entry)
-                    session.commit()
+        thread_id = threading.get_ident()
+        if thread_id not in self._sessions_by_thread_ident :
+            with lock :
+                self._sessions_by_thread_ident[thread_id] = self._scoped_session()
+        self._sessions_by_thread_ident[thread_id].add(entry)
+        self._sessions_by_thread_ident[thread_id].commit()
 
     @classmethod
     def run_from_command_line(cls,args=None) :
@@ -122,11 +133,14 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
                     Output will go in a .csv file if this argument is not given.''')
         parser.add_argument('--drop_existing',action='store_true',
             help='Add this flag to drop and recreate any existing table in the database on startup')
+        parser.add_argument('--verbose','-v',action='store_true',
+            help='Add this flag to use a verbose SQLAlchemy engine')
         args = parser.parse_args(args=args)
         #make the stream processor
         flyer_analysis = cls(args.config,args.topic_name,
                              db_connection_str=args.db_connection_str,
                              drop_existing=args.drop_existing,
+                             verbose=args.verbose,
                              output_dir=args.output_dir,
                              n_threads=args.n_threads,
                              update_secs=args.update_seconds,
@@ -147,9 +161,9 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
         msg = f'{n_read} total messages were consumed'
         if len(processed_filepaths)>0 :
             msg+=f', {n_processed} messages were successfully processed,'
-            msg+=f' and the following {len(processed_filepaths)} plot file'
-            msg+=' was' if len(processed_filepaths)==1 else 's were'
-            msg+=' created'
+            msg+=f' and the following {len(processed_filepaths)} file'
+            msg+=' ' if len(processed_filepaths)==1 else 's '
+            msg+=f'had analysis results added to {args.db_connection_str}'
         else :
             msg+=f' and {n_processed} messages were successfully processed'
         msg+=f' from {run_start} to {run_stop}'

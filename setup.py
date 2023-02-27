@@ -32,6 +32,7 @@ setupkwargs = dict(
                       'opencv-python>=4.7.0.68',
                       'openmsistream>=1.2.0',
                       'pandas>=1.5.2',
+                      'pymssql>=2.2.7',
                       'pytest-shutil>=1.7.0',
                       'scikit-image>=0.19.3',
                       'scipy>=1.10.0',

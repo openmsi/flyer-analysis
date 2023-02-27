@@ -129,7 +129,15 @@ class Flyer_Detection():
       fc.flyer_column=y
       df=pd.DataFrame(zip(y,x),columns=['y','x'])
       df=df.sort_values(by=['y']).reset_index(drop=True)
-
+      if len(x)<1 and len(y)<1 :
+        fc.exit_code=2
+        return fc
+      elif len(x)<1 and len(y)>0 :
+        fc.exit_code=3
+        return fc
+      elif len(y)<1 and len(x)>0 :
+        fc.exit_code=4
+        return fc
       #Using the Least Squares method with Levenberg-Marquardt Optimization (which is Dampened Least Squares similar to L2 regularization)
       x_m = np.mean(x)
       y_m = np.mean(y)
@@ -155,7 +163,7 @@ class Flyer_Detection():
       Ri_2       = calc_R(*center_2.x)
       R_2        = Ri_2.mean()
       if R_2>max_radius or R_2<min_radius:
-        fc.exit_code=2
+        fc.exit_code=5
         return fc
       fc.radius=R_2
       fc.center_row=xc_2
@@ -163,6 +171,9 @@ class Flyer_Detection():
       fc.leading_row=max(x)
       #Finding the tilt using arctan and slope value. For a circle, the slope is: -(x-xc)/(y-yc)
       h,v=df.iloc[int(np.ceil(len(df)/2))]
+      if (h-xc_2)==0 :
+        fc.exit_code=6
+        return fc
       fc.tilt=np.arctan((v-yc_2)/(h-xc_2))
       rr, cc = draw.disk((xc_2, yc_2), R_2,
                         shape=temp.shape)
@@ -179,7 +190,7 @@ class Flyer_Detection():
         image= image.astype(np.uint8)
         imageio.imwrite(fc.newimg_loc,image)
     except:
-      fc.exit_code=3
+      fc.exit_code=7
       return fc
     fc.exit_code=0
     return fc
