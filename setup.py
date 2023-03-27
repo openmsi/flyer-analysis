@@ -30,7 +30,7 @@ setupkwargs = dict(
                       'matplotlib',
                       'numpy',
                       'opencv-python',
-                      'openmsistream',
+                      'openmsistream>=1.2.0',
                       'pandas',
                       'pymssql',
                       'pytest-shutil',
