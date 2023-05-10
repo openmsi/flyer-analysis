@@ -233,6 +233,8 @@ class Flyer_Detection():
     for i in sorted(os.listdir(input_location)):
       basewidth = 256
       im_loc=os.path.join(input_location,i)
+      if not im_loc.endswith('.bmp'):
+        continue
       img = Image.open(im_loc)
       img = np.array(img)
       filtered_image=self.filter_image(img) 
