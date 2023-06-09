@@ -137,19 +137,23 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
             help='Add this flag to use a verbose SQLAlchemy engine')
         args = parser.parse_args(args=args)
         #make the stream processor
-        flyer_analysis = cls(args.config,args.topic_name,
-                             db_connection_str=args.db_connection_str,
-                             drop_existing=args.drop_existing,
-                             verbose=args.verbose,
-                             output_dir=args.output_dir,
-                             n_threads=args.n_threads,
-                             update_secs=args.update_seconds,
-                             consumer_group_id=args.consumer_group_id)
+        flyer_analysis = cls(
+            args.config,args.topic_name,
+            db_connection_str=args.db_connection_str,
+            drop_existing=args.drop_existing,
+            verbose=args.verbose,
+            output_dir=args.output_dir,
+            n_threads=args.n_threads,
+            update_secs=args.update_seconds,
+            consumer_group_id=args.consumer_group_id,
+            streamlevel=args.logger_stream_level,
+            filelevel=args.logger_file_level,
+        )
         #start the processor running (returns total number of messages read, processed, and names of processed files)
         run_start = datetime.datetime.now()
         msg = f'Listening to the {args.topic_name} topic for flyer image files to analyze'
         flyer_analysis.logger.info(msg)
-        n_read,n_processed,processed_filepaths = flyer_analysis.process_files_as_read()
+        n_msgs_read,n_msgs_proc,n_files_proc,proc_filepaths, = flyer_analysis.process_files_as_read()
         flyer_analysis.close()
         run_stop = datetime.datetime.now()
         #shut down when that function returns
@@ -158,16 +162,16 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor) :
             msg+=f'writing to {args.output_dir} '
         msg+= 'shut down'
         flyer_analysis.logger.info(msg)
-        msg = f'{n_read} total messages were consumed'
-        if len(processed_filepaths)>0 :
-            msg+=f', {n_processed} messages were successfully processed,'
-            msg+=f' and the following {len(processed_filepaths)} file'
-            msg+=' ' if len(processed_filepaths)==1 else 's '
-            msg+=f'had analysis results added to {args.db_connection_str}'
+        msg = f'{n_msgs_read} total messages were consumed'
+        if n_files_proc>0 :
+            msg+=f', {n_msgs_proc} messages were successfully processed,'
+            msg+=f' and {n_files_proc} files'
+            msg+=' ' if n_files_proc==1 else 's '
+            msg+=f'had analysis results added to {args.db_connection_str} (latest listed below)'
         else :
-            msg+=f' and {n_processed} messages were successfully processed'
+            msg+=f' and {n_msgs_proc} messages were successfully processed'
         msg+=f' from {run_start} to {run_stop}'
-        for fn in processed_filepaths :
+        for fn in proc_filepaths :
             msg+=f'\n\t{fn}'
         flyer_analysis.logger.info(msg)
 
