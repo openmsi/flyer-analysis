@@ -45,6 +45,7 @@ class flyer_characteristics():
     self.rel_filepath=None
     self.newimg_loc=None
     self.tilt=None
+    self.analysis_image=None
 
   def show_image(self):
     # It is to be noted that the flyer rows and columns will be the y-coordinates and row-coordinates in a graph.
@@ -177,18 +178,18 @@ class Flyer_Detection():
       fc.tilt=np.arctan((v-yc_2)/(h-xc_2))
       rr, cc = draw.disk((xc_2, yc_2), R_2,
                         shape=temp.shape)
-      image=copy.deepcopy(img2) 
-      image[rr, cc] = 100
+      fc.analysis_image=copy.deepcopy(img2) 
+      fc.analysis_image[rr, cc] = 100
       x,y=np.nonzero(temp)
-      image[x, y] = 256
+      fc.analysis_image[x, y] = 256
+      fc.analysis_image=(fc.analysis_image-np.min(fc.analysis_image))/(np.max(fc.analysis_image)-np.min(fc.analysis_image))
+      fc.analysis_image = 255 * fc.analysis_image # Now scale by 255
+      fc.analysis_image= fc.analysis_image.astype(np.uint8)
 
       # Putting the new images into a file
       if save_output_file :
         fc.newimg_loc=output_dir+'/'+im_loc[im_loc.rfind('/')+1:]
-        image=(image-np.min(image))/(np.max(image)-np.min(image))
-        image = 255 * image # Now scale by 255
-        image= image.astype(np.uint8)
-        imageio.imwrite(fc.newimg_loc,image)
+        imageio.imwrite(fc.newimg_loc,fc.analysis_image)
     except:
       fc.exit_code=7
       return fc
