@@ -36,6 +36,7 @@ setupkwargs = dict(
         "pandas",
         "pymssql",
         "pytest-shutil",
+        "python-fmrest>=1.6.0",
         "scikit-image",
         "scipy",
         "sqlalchemy",
