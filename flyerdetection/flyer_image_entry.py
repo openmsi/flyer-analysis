@@ -31,7 +31,7 @@ class FlyerImageEntry(ORMBase):
         self.analysis_image = analysis_image
 
     @classmethod
-    def from_ID_img_and_result(cls,analysis_result_ID,img_bytestring,result):
+    def from_ID_img_and_result(cls, analysis_result_ID, img_bytestring, result):
         """
         Given the ID of an associated analysis result entry, the bytestring of
         the original .bmp image, and the "flyer_characteristics" result object

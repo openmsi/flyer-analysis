@@ -1,14 +1,13 @@
 # imports
-import datetime, threading, os, getpass
+import datetime, threading
 from io import BytesIO
 import numpy as np, pandas as pd
 from PIL import Image
-from sqlalchemy import create_engine, inspect
+from sqlalchemy import create_engine, inspect, select, and_
 from sqlalchemy.orm import sessionmaker, scoped_session
-import fmrest
 from openmsistream import DataFileStreamProcessor
 from .orm_base import ORMBase
-from .video_metadata_entry import VideoMetadataEntry
+from .metadata_link_entry import MetadataLinkEntry
 from .flyer_analysis_entry import FlyerAnalysisEntry
 from .flyer_image_entry import FlyerImageEntry
 from .flyer_detection import Flyer_Detection, flyer_characteristics
@@ -23,27 +22,29 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
     stored in a secondary table if output is going to a DB
     """
 
+    # All the Table objects associated with the DB
+    ALL_TABLES = [
+        FlyerAnalysisEntry.__table__,
+        FlyerImageEntry.__table__,
+        MetadataLinkEntry.__table__,
+    ]
+
     def __init__(
         self,
         config_file,
         topic_name,
         *,
         db_connection_str=None,
-        filemaker_url=None,
         drop_existing=False,
         verbose=False,
         **other_kwargs,
     ):
         super().__init__(config_file, topic_name, **other_kwargs)
-        # either create an engine to interact with a DB, with a FileMaker DB connection,
-        # or store the path to the output file
+        # either create an engine to interact with a DB or store the path to the output file
         self._engine = None
-        self._filemaker_server = None
         self._output_file = None
-        analysis_table_name = FlyerAnalysisEntry.FLYER_ANALYSIS_TABLE_NAME
+        analysis_table_name = FlyerAnalysisEntry.__tablename__
         if db_connection_str is not None:
-            # connect to the filemaker server
-            self._filemaker_server = self.__get_filemaker_server(filemaker_url)
             # if a connection string was given, connect to the DB
             try:
                 self._engine = create_engine(db_connection_str, echo=verbose)
@@ -62,7 +63,7 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
                 self.__create_tables()
             # create tables in the DB if any of them haven't been created yet
             inspector = inspect(self._engine)
-            for table_name in [table.name for table in self.__get_all_tables()]:
+            for table_name in [table.name for table in self.ALL_TABLES]:
                 if not inspector.has_table(table_name):
                     self.__create_tables()
                     break
@@ -110,73 +111,17 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
         super()._on_shutdown()
         self._engine.dispose()
 
-    def __get_filemaker_uname_and_pword(self):
-        """
-        Get the FileMaker username and password from environment variables or user input
-        """
-        uname_env_var = "FILEMAKER_UNAME"
-        username = os.path.expandvars(f"${uname_env_var}")
-        if username==f"${uname_env_var}" :
-            username = (input('Please enter your JHED username: ')).rstrip()
-        pword_env_var = "FILEMAKER_PWORD"
-        password = os.path.expandvars(f"${pword_env_var}")
-        if password==f"${pword_env_var}" :
-            password = getpass.getpass(f"Please enter the JHED password for {username}: ")
-        return username, password
-    
-    def __get_filemaker_server(self,filemaker_url):
-        """
-        Create a FileMaker REST API server connection to the "Experiment" layout
-        and return it
-        """
-        username = None
-        password = None
-        try:
-            username, password = self.__get_filemaker_uname_and_pword()
-            fms = fmrest.Server(
-                filemaker_url,
-                user=username,
-                password=password,
-                database="Laser Shock",
-                layout="Experiment",
-                verify_ssl=False,
-                api_version="v1",
-            )
-            fms.login()
-            return fms
-        except Exception as exc:
-            warnmsg = (
-                "WARNING: failed to authenticate to the FileMaker metadata DB "
-                f"(username: {username}, password given?: {'yes' if password else 'no'}). "
-                "Video metadata entries will not be added to the output DB. "
-                "Exception traceback will be logged."
-            )
-            self.logger.warning(warnmsg,exc_info=exc)
-            return None
-
-    def __get_all_tables(self):
-        """
-        Return a list of all relevant table objects
-        """
-        all_tables = [
-            FlyerAnalysisEntry.__table__,
-            FlyerImageEntry.__table__,
-        ]
-        if self._filemaker_server:
-            all_tables.append(VideoMetadataEntry.__table__)
-        return all_tables
-
     def __drop_existing_tables(self):
         """
         Drop the table in the database
         """
-        ORMBase.metadata.drop_all(bind=self._engine,tables=self.__get_all_tables())
+        ORMBase.metadata.drop_all(bind=self._engine, tables=self.ALL_TABLES)
 
     def __create_tables(self):
         """
         Create the table in the database
         """
-        ORMBase.metadata.create_all(bind=self._engine,tables=self.__get_all_tables())
+        ORMBase.metadata.create_all(bind=self._engine, tables=self.ALL_TABLES)
 
     def __write_result_to_csv(self, result, lock):
         """
@@ -192,13 +137,44 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
             else:
                 data_frame.to_csv(self._output_file, mode="w", index=False, header=True)
 
-    def __get_video_metadata_ID_for_frame(self,result,lock,session):
+    def __get_metadata_link_ID(self, result, lock, session):
         """
-        Return the ID of a metadata record created for the video associated with a given
-        result for a frame. Creates the record if necessary
+        Return the ID of a metadata link entry created for the video containing the given
+        frame result. Creates the record if necessary.
         """
-        pass
-    
+        # Determine the fields for the entry from the relative filepath
+        fields = MetadataLinkEntry.get_link_fields_from_relative_filepath(
+            result.rel_filepath
+        )
+        # Figure out the conditions for the query
+        conditions = []
+        if fields["datestamp"]:
+            conditions.append(MetadataLinkEntry.datestamp == fields["datestamp"])
+        if fields["experiment_day_counter"]:
+            conditions.append(
+                MetadataLinkEntry.experiment_day_counter
+                == fields["experiment_day_counter"]
+            )
+        if fields["camera_filename"]:
+            conditions.append(
+                MetadataLinkEntry.camera_filename == fields["camera_filename"]
+            )
+        # At least one field must be determined
+        if len(conditions) < 1:
+            return None
+        stmt = select(MetadataLinkEntry.ID).where(and_(*conditions))
+        with lock:
+            # If a matching entry already exists, return its ID
+            with self._engine.connect() as conn:
+                result = conn.execute(stmt).first()
+            if result:
+                return result[0]
+            # If not, create and commit the entry and return its ID
+            new_entry = MetadataLinkEntry(**fields)
+            session.add(new_entry)
+            session.commit()
+            return new_entry.ID
+
     def __write_result_to_DB(self, result, img_bytestring, lock):
         """
         Write a given result to the output database
@@ -209,13 +185,17 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
             with lock:
                 self._sessions_by_thread_ident[thread_id] = self._scoped_session()
         # get the ID of the video metadata entry for this frame, adding it if necessary
-        video_metadata_ID = self.__get_video_metadata_ID_for_frame()
+        metadata_link_ID = self.__get_metadata_link_ID(
+            result, lock, self._sessions_by_thread_ident[thread_id]
+        )
         # add the analysis result entry
-        analysis_entry = FlyerAnalysisEntry.from_ID_and_result(video_metadata_ID,result)
+        analysis_entry = FlyerAnalysisEntry.from_ID_and_result(metadata_link_ID, result)
         self._sessions_by_thread_ident[thread_id].add(analysis_entry)
         self._sessions_by_thread_ident[thread_id].commit()
         # add the image entry
-        image_entry = FlyerImageEntry.from_ID_img_and_result(analysis_entry.ID,img_bytestring,result)
+        image_entry = FlyerImageEntry.from_ID_img_and_result(
+            analysis_entry.ID, img_bytestring, result
+        )
         self._sessions_by_thread_ident[thread_id].add(image_entry)
         self._sessions_by_thread_ident[thread_id].commit()
 
@@ -233,15 +213,6 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
                 "(SQLAlchemy format). Partial output will go in a .csv file if "
                 "this argument is not given."
             ),
-        )
-        parser.add_argument(
-            "--filemaker_url",
-            help=(
-                "The URL of the FileMaker server to connect to for fetching video metadata. "
-                "If this isn't given (or the filemaker username/password can't be determined "
-                "from environment variables or user input) then no entries will be added to "
-                "the video metadata table. Only relevant with a db_connection_str given."
-            )
         )
         parser.add_argument(
             "--drop_existing",
@@ -263,7 +234,6 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
             args.config,
             args.topic_name,
             db_connection_str=args.db_connection_str,
-            filemaker_url=args.filemaker_url,
             drop_existing=args.drop_existing,
             verbose=args.verbose,
             output_dir=args.output_dir,
