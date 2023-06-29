@@ -79,7 +79,7 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
         (in case there are duplicate files in the topic)
         """
         stmt = select(FlyerAnalysisEntry.ID).where(
-            FlyerAnalysisEntry.rel_filepath == datafile.relative_filepath
+            FlyerAnalysisEntry.rel_filepath == str(datafile.relative_filepath)
         )
         with lock:
             with self._engine.connect() as conn:
