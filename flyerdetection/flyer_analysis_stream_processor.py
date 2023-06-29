@@ -47,7 +47,9 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
         if db_connection_str is not None:
             # if a connection string was given, connect to the DB
             try:
-                self._engine = create_engine(db_connection_str, echo=verbose)
+                self._engine = create_engine(
+                    db_connection_str, echo=verbose, deprecate_large_types=True
+                )
                 self._scoped_session = scoped_session(sessionmaker(bind=self._engine))
                 self._sessions_by_thread_ident = {}
             except Exception as exc:
