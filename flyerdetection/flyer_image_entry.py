@@ -1,7 +1,7 @@
 # imports
 from io import BytesIO
 import numpy as np
-from sqlalchemy import Integer, VARBINARY, ForeignKey
+from sqlalchemy import Integer, LargeBinary, ForeignKey
 from sqlalchemy.orm import mapped_column, relationship
 from .orm_base import ORMBase
 from .flyer_analysis_entry import FlyerAnalysisEntry
@@ -18,8 +18,8 @@ class FlyerImageEntry(ORMBase):
     analysis_result_ID = mapped_column(
         ForeignKey(f"{FlyerAnalysisEntry.__tablename__}.ID")
     )
-    camera_image = mapped_column(VARBINARY(250000))
-    analysis_image = mapped_column(VARBINARY(150000))
+    camera_image = mapped_column(LargeBinary(250000))
+    analysis_image = mapped_column(LargeBinary(150000))
 
     flyer_analysis_relation = relationship(
         "FlyerAnalysisEntry", foreign_keys="FlyerImageEntry.analysis_result_ID"
