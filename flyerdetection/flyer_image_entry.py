@@ -18,8 +18,8 @@ class FlyerImageEntry(ORMBase):
     analysis_result_ID = mapped_column(
         ForeignKey(f"{FlyerAnalysisEntry.__tablename__}.ID")
     )
-    camera_image = mapped_column(LargeBinary(250000))
-    analysis_image = mapped_column(LargeBinary(150000))
+    camera_image = mapped_column(LargeBinary())
+    analysis_image = mapped_column(LargeBinary())
 
     flyer_analysis_relation = relationship(
         "FlyerAnalysisEntry", foreign_keys="FlyerImageEntry.analysis_result_ID"
