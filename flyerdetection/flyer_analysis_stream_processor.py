@@ -73,6 +73,21 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
             # if no connection string was given, set the path to the single output file
             self._output_file = self._output_dir / f"{analysis_table_name}.csv"
 
+    def __entry_exists(self, datafile, lock):
+        """
+        Return True if there's already an entry for the given datafile's relative filepath
+        (in case there are duplicate files in the topic)
+        """
+        stmt = select(FlyerAnalysisEntry.ID).where(
+            FlyerAnalysisEntry.rel_filepath == datafile.relative_filepath
+        )
+        with lock:
+            with self._engine.connect() as conn:
+                result = conn.execute(stmt).first()
+            if result:
+                return True
+        return False
+
     def _process_downloaded_data_file(self, datafile, lock):
         """
         Run the flyer analysis on the downloaded data file
@@ -82,6 +97,10 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
         if not datafile.filename.endswith(".bmp"):
             return None
         try:
+            # first, if we're writing to a DB, check if the relative filepath
+            # has already been written
+            if self._engine is not None and self.__entry_exists(datafile, lock):
+                return None
             result = None
             analyzer = Flyer_Detection()
             img = np.asarray(Image.open(BytesIO(datafile.bytestring)))
