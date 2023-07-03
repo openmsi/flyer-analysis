@@ -258,6 +258,7 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
             drop_existing=args.drop_existing,
             verbose=args.verbose,
             output_dir=args.output_dir,
+            filepath_regex=args.download_regex,
             n_threads=args.n_threads,
             update_secs=args.update_seconds,
             consumer_group_id=args.consumer_group_id,
