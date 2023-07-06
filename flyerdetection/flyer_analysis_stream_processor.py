@@ -73,21 +73,6 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
             # if no connection string was given, set the path to the single output file
             self._output_file = self._output_dir / f"{analysis_table_name}.csv"
 
-    def __entry_exists(self, datafile, lock):
-        """
-        Return True if there's already an entry for the given datafile's relative filepath
-        (in case there are duplicate files in the topic)
-        """
-        stmt = select(FlyerAnalysisEntry.ID).where(
-            FlyerAnalysisEntry.rel_filepath == str(datafile.relative_filepath)
-        )
-        with lock:
-            with self._engine.connect() as conn:
-                result = conn.execute(stmt).first()
-            if result:
-                return True
-        return False
-
     def _process_downloaded_data_file(self, datafile, lock):
         """
         Run the flyer analysis on the downloaded data file
@@ -158,6 +143,21 @@ class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
             else:
                 data_frame.to_csv(self._output_file, mode="w", index=False, header=True)
 
+    def __entry_exists(self, datafile, lock):
+        """
+        Return True if there's already an entry for the given datafile's relative filepath
+        (in case there are duplicate files in the topic)
+        """
+        stmt = select(FlyerAnalysisEntry.ID).where(
+            FlyerAnalysisEntry.rel_filepath == str(datafile.relative_filepath)
+        )
+        with lock:
+            with self._engine.connect() as conn:
+                result = conn.execute(stmt).first()
+            if result:
+                return True
+        return False
+    
     def __get_metadata_link_ID(self, result, lock, session):
         """
         Return the ID of a metadata link entry created for the video containing the given
