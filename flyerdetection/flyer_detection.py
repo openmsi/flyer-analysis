@@ -171,7 +171,7 @@ class Flyer_Detection():
       fc.center_column=yc_2
       fc.leading_row=max(x)
       #Finding the tilt using arctan and slope value. For a circle, the slope is: -(x-xc)/(y-yc)
-      h,v=df.iloc[int(np.ceil(len(df)/2))]
+      v,h=df.iloc[int(np.ceil(len(df)/2))]
       if (h-xc_2)==0 :
         fc.exit_code=6
         return fc

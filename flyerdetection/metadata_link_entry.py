@@ -40,23 +40,20 @@ class MetadataLinkEntry(ORMBase):
             "experiment_day_counter": None,
             "camera_filename": None,
         }
-        # check if the filename matches the "TC--*" pattern, which should be sufficient
+        # check if the filename matches the "TC--*" pattern
         if TC_FILENAME_REGEX.match(rel_filepath.name):
             date_str = rel_filepath.name.split("--")[1]
             rdict["datestamp"] = datetime.datetime.strptime(date_str, "%Y%m%d")
             rdict["experiment_day_counter"] = rel_filepath.name[: -len(".bmp")].split(
                 "--"
             )[-1]
-            return rdict
         parts = rel_filepath.parts
-        # first look for exactly one thing in the path like "HS--(datestamp)--(counter)"
-        # which should provide sufficient information on its own
+        # look for exactly one thing in the path like "HS--(datestamp)--(counter)"
         hs_parts = [part for part in parts if HS_TAG_REGEX.match(part)]
         if len(hs_parts) == 1:
             date_str = hs_parts[0].split("--")[1]
             rdict["datestamp"] = datetime.datetime.strptime(date_str, "%Y%m%d")
             rdict["experiment_day_counter"] = hs_parts[0].split("--")[-1]
-            return rdict
         # next look for exactly one thing in the path like "yyyy_mm_dd"
         datestamp_parts = [part for part in parts if DATESTAMP_REGEX.match(part)]
         if len(datestamp_parts) == 1:
