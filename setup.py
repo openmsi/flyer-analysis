@@ -1,29 +1,30 @@
+""" Setup for flyer-analysis """
 # imports
 import setuptools
 
-version = "1.0.0"
+VERSION = "1.0.0"
 
-long_description = ""
+LONG_DESCRIPTION = ""
 with open("README.md", "r") as readme:
     for il, line in enumerate(readme.readlines(), start=1):
-        long_description += line
+        LONG_DESCRIPTION += line
 
 setupkwargs = dict(
-    name="flyerdetection",
-    packages=setuptools.find_packages(include=["flyerdetection*"]),
+    name="flyeranalysis",
+    packages=setuptools.find_packages(include=["flyeranalysis*"]),
     include_package_data=True,
-    version=version,
+    version=VERSION,
     description="""Python application for detecting and analyzing flyer properties in 
                    laser shock lab high speed video frames""",
-    long_description=long_description,
+    long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
     author="Alakarthika Ulaganathan, Maggie Eminizer",
-    url="https://github.com/openmsi/flyer-detection",
-    download_url=f"https://github.com/openmsi/flyer-detection/archive/refs/tags/v{version}.tar.gz",
+    url="https://github.com/openmsi/flyer-analysis",
+    download_url=f"https://github.com/openmsi/flyer-analysis/archive/refs/tags/v{VERSION}.tar.gz",
     license="GNU GPLv3",
     entry_points={
         "console_scripts": [
-            "FlyerAnalysisStreamProcessor=flyerdetection.flyer_analysis_stream_processor:main",
+            "FlyerAnalysisStreamProcessor=flyeranalysis.flyer_analysis_stream_processor:main",
         ],
     },
     python_requires=">=3.9",
