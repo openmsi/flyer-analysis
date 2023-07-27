@@ -9,9 +9,10 @@ Typical usage:
 # imports
 import pathlib
 import logging
+import json
 import getpass
 from argparse import ArgumentParser
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import create_engine, MetaData, Table, Column, insert
 import fmrest
 
 
@@ -29,21 +30,14 @@ class FileMakerToSQL:
     )
     FMREST_SERVER_EXTRA_KWARGS = {"verify_ssl": False, "api_version": "v1"}
     FM_DB_NAME = "Laser Shock"
-    FM_LAYOUT_NAMES = [
-        "Glass ID",
-        "Foil ID",
-        "Epoxy ID",
-        "Spacer ID",
-        "Flyer Cutting Program",
-        "Spacer Cutting Program",
-        "Flyer Stack",
-        "Sample",
-        "Launch Package",
-        "Experiment",
-    ]
-    SQL_DB_TABLE_NAMES = [
-        fm_layout_name.replace(" ", "") for fm_layout_name in FM_LAYOUT_NAMES
-    ]
+    FM_LAYOUT_MAP_FILEPATH = (
+        pathlib.Path(__file__).resolve().parent / "filemaker_layout_map.json"
+    )
+
+    @property
+    def sql_db_table_names(self):
+        "A list of all of the SQL DB table names defined in the FileMaker layout map"
+        return [map_dict["sql_table_name"] for map_dict in self.fm_layout_map.values()]
 
     def __init__(
         self,
@@ -54,7 +48,22 @@ class FileMakerToSQL:
         self.logger = self.__get_logger(
             logger_stream_level, logger_file_level, logfile_path
         )
+        if not self.FM_LAYOUT_MAP_FILEPATH.is_file():
+            self.__log_and_raise_exception(
+                FileNotFoundError,
+                f"ERROR: Layout map json file {self.FM_LAYOUT_MAP_FILEPATH} does not exist!",
+            )
+        try:
+            with open(self.FM_LAYOUT_MAP_FILEPATH) as fm_layout_json_file:
+                self.fm_layout_map = json.load(fm_layout_json_file)
+        except Exception as exc:
+            self.__log_and_raise_exception(
+                RuntimeError,
+                f"ERROR: failed to parse the JSON file at {self.FM_LAYOUT_MAP_FILEPATH}",
+                raise_from=exc,
+            )
         self.engine = None
+        self.meta = None
         self.fm_ip_address = None
         self.fm_uname = None
         self.fm_pword = None
@@ -77,6 +86,8 @@ class FileMakerToSQL:
         """
         try:
             self.engine = create_engine(connection_str, echo=verbose)
+            self.meta = MetaData()
+            self.meta.reflect(bind=self.engine)
         except Exception as exc:
             errmsg = (
                 "ERROR: failed to connect to sql database "
@@ -90,31 +101,49 @@ class FileMakerToSQL:
         self.fm_pword = getpass.getpass(
             f"Please enter the JHED password for {self.fm_uname}: "
         )
-        test_server = self.__get_filemaker_server(self.FM_LAYOUT_NAMES[0])
+        test_server = self.__get_filemaker_server(list(self.fm_layout_map.keys())[0])
         test_server.logout()
 
     def drop_tables(self):
         "If any of the tables we're about to create exist already, drop them"
-        meta = MetaData()
-        meta.reflect(bind=self.engine)
         tables_to_drop = [
-            meta.tables[tname]
-            for tname in meta.tables
-            if tname in self.SQL_DB_TABLE_NAMES
+            self.meta.tables[tname]
+            for tname in self.meta.tables
+            if tname in self.sql_db_table_names
         ]
         if len(tables_to_drop) > 0:
             self.logger.warning(
                 "WARNING: Dropping tables: %s",
                 ", ".join([table.name for table in tables_to_drop]),
             )
-            meta.drop_all(bind=self.engine, tables=tables_to_drop)
+            self.meta.drop_all(bind=self.engine, tables=tables_to_drop)
 
     def convert(self):
         """TODO: write this docstring"""
-        for layout_name in self.FM_LAYOUT_NAMES:
-            self.logger.info(
-                'Adding entries from the "%s" FileMaker Layout', layout_name
+        for layout, map_dict in self.fm_layout_map.items():
+            self.logger.info('Adding entries from the "%s" FileMaker Layout', layout)
+            tablename = map_dict["sql_table_name"]
+            fms = self.__get_filemaker_server(layout_name=layout)
+            records_df = (fms.get_records(limit=100000)).to_df()
+            if records_df.shape[0] < 1:
+                warnmsg = (
+                    f"WARNING: found {records_df.shape[0]} records in the "
+                    f'"{layout}" layout! The "{tablename}" table will not be added.'
+                )
+                self.logger.warning(warnmsg)
+                continue
+            columns = self.__get_columns_from_fm_records(records_df, layout)
+            new_table = Table(
+                tablename,
+                self.meta,
+                *columns,
             )
+            self.meta.create_all(bind=self.engine, tables=[new_table])
+            entry_sets = self.__get_entry_sets_from_fm_records(records_df, layout)
+            with self.engine.connect() as conn:
+                for entry_list in entry_sets.values():
+                    _ = conn.execute(insert(new_table), entry_list)
+                conn.commit()
         self.logger.info("Done!")
 
     @classmethod
@@ -218,6 +247,35 @@ class FileMakerToSQL:
             )
             self.__log_and_raise_exception(RuntimeError, errmsg, raise_from=exc)
         return fms
+
+    def __get_columns_from_fm_records(self, records, layout):
+        """Given a dataframe of FileMaker records and the name of the layout they came
+        from, return a list of SQLAlchemy Column objects that should be used in its
+        corresponding SQL Table
+
+        Args:
+            records: a Pandas dataframe of FileMaker record objects
+            layout: the name of the FileMaker layout from which the records were retrieved
+
+        Returns: A list of SQLAlchemy Column objects defining the new SQL table to be added
+        """
+        return []
+
+    def __get_entry_sets_from_fm_records(self, records, layout):
+        """Given a dataframe of FileMaker records and the name of the layout they came from,
+        return a dictionary of rows that should be added to the corresponding SQL table.
+
+        The return value is a dictionary where the keys are sets (cast to strings) of
+        non-null column values, and the values are lists of dictionaries representing
+        new rows to add.
+
+        Args:
+            records: list of FileMaker records from the given layout
+            layout: the name of the FileMaker layout from which the records were retrieved
+
+        Returns: A dictionary of lists of new entries to add
+        """
+        return {}
 
 
 def main(args=None):

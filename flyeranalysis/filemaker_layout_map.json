@@ -1,0 +1,52 @@
+{
+    "Glass ID": {
+        "sql_table_name":"glass",
+        "pk_key": "Glass name",
+        "custom_columns": []
+    },
+    "Foil ID": {
+        "sql_table_name":"foil",
+        "pk_key": "Foil Name",
+        "custom_columns": []
+    },
+    "Epoxy ID": {
+        "sql_table_name":"epoxy",
+        "pk_key": "Epoxy Name",
+        "custom_columns": []
+    },
+    "Spacer ID": {
+        "sql_table_name":"spacer",
+        "pk_key": "Spacer Name",
+        "custom_columns": []
+    },
+    "Flyer Cutting Program": {
+        "sql_table_name":"flyer_cutting_program",
+        "pk_key": "Program name",
+        "custom_columns": []
+    },
+    "Spacer Cutting Program": {
+        "sql_table_name":"spacer_cutting_program",
+        "pk_key": "Program Name",
+        "custom_columns": []
+    },
+    "Flyer Stack": {
+        "sql_table_name":"flyer_stack",
+        "pk_key": "Flyer ID",
+        "custom_columns": []
+    },
+    "Sample": {
+        "sql_table_name":"sample",
+        "pk_key": "Sample Name",
+        "custom_columns": []
+    },
+    "Launch Package": {
+        "sql_table_name":"launch_package",
+        "pk_key": "Launch ID",
+        "custom_columns": []
+    },
+    "Experiment": {
+        "sql_table_name":"experiment",
+        "pk_key": "recordId",
+        "custom_columns": []
+    }
+}
