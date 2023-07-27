@@ -212,6 +212,7 @@ class Flyer_Detection:
     def filter_image(self, img):
         "Code to get the final filtered Image"
         # Converting the Image to Grayscale
+        # pylint: disable=no-member
         input_image_gray = cv2.GaussianBlur(img, (7, 7), 0)
         # Applying Sobel Edge Detection on the Image
         edge_sobel = filters.sobel(input_image_gray)
