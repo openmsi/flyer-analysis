@@ -11,8 +11,20 @@ import pathlib
 import logging
 import json
 import getpass
+import datetime
 from argparse import ArgumentParser
-from sqlalchemy import create_engine, MetaData, Table, Column, insert
+from sqlalchemy import (
+    create_engine,
+    MetaData,
+    Table,
+    Column,
+    insert,
+    String,
+    Float,
+    Integer,
+    ForeignKey,
+    DateTime,
+)
 import fmrest
 
 
@@ -33,6 +45,13 @@ class FileMakerToSQL:
     FM_LAYOUT_MAP_FILEPATH = (
         pathlib.Path(__file__).resolve().parent / "filemaker_layout_map.json"
     )
+    TYPE_HIERARCHY = [float, int, str]
+    TYPE_MAP = {
+        str: String,
+        float: Float,
+        int: Integer,
+        datetime.datetime: DateTime,
+    }
 
     @property
     def sql_db_table_names(self):
@@ -117,6 +136,8 @@ class FileMakerToSQL:
                 ", ".join([table.name for table in tables_to_drop]),
             )
             self.meta.drop_all(bind=self.engine, tables=tables_to_drop)
+        self.meta = MetaData()
+        self.meta.reflect(bind=self.engine)
 
     def convert(self):
         """TODO: write this docstring"""
@@ -248,6 +269,28 @@ class FileMakerToSQL:
             self.__log_and_raise_exception(RuntimeError, errmsg, raise_from=exc)
         return fms
 
+    def __get_python_type_for_column(self, column_records, layout, column_name):
+        """Return the Python type that every entry in a particular column should be cast to
+
+        Args:
+            column_records: a single column of a Pandas dataframe of FileMaker record objects
+            layout: the name of the FileMaker layout from which the records were retrieved
+            column_name: the name of the column in question
+
+        Returns: The Python data type that entries for this column should be cast to
+        """
+        if column_name in self.fm_layout_map[layout]["custom_columns"]:
+            for col_unique in self.fm_layout_map[layout]["custom_columns"][column_name]:
+                if col_unique == "astype-datetime":
+                    return datetime.datetime
+        column_python_type = None
+        all_column_types = set(list(column_records.map(type)))
+        for python_type in self.TYPE_HIERARCHY:
+            if python_type in all_column_types:
+                column_python_type = python_type
+                break
+        return column_python_type
+
     def __get_columns_from_fm_records(self, records, layout):
         """Given a dataframe of FileMaker records and the name of the layout they came
         from, return a list of SQLAlchemy Column objects that should be used in its
@@ -259,7 +302,46 @@ class FileMakerToSQL:
 
         Returns: A list of SQLAlchemy Column objects defining the new SQL table to be added
         """
-        return []
+        all_columns = []
+        for column_name in records.columns:
+            col_uniques = []
+            if column_name in self.fm_layout_map[layout]["custom_columns"]:
+                col_uniques = self.fm_layout_map[layout]["custom_columns"][column_name]
+            # skip any columns that should be ignored
+            if "ignore" in col_uniques:
+                continue
+            # print(f"{column_name} ({type(records[column_name].iloc[0])})")
+            # set the args for the column and type constructors
+            col_extra_args = []
+            col_kwargs = {}
+            if column_name == self.fm_layout_map[layout]["pk_key"]:
+                col_kwargs["primary_key"] = True
+            if "unique" in col_uniques:
+                col_kwargs["unique"] = True
+            for col_unique in col_uniques:
+                if col_unique == "not_null":
+                    col_kwargs["nullable"] = False
+                elif col_unique == "unique":
+                    col_kwargs["unique"] = True
+                elif col_unique.startswith("fk"):
+                    col_extra_args.append(ForeignKey(col_unique.split("-")[-1]))
+            column_python_type = self.__get_python_type_for_column(
+                records[column_name], layout, column_name
+            )
+            column_type = self.TYPE_MAP[column_python_type]
+            type_kwargs = {}
+            if column_type == String:
+                type_kwargs["length"] = records[column_name].str.len().max()
+            # append the new column
+            all_columns.append(
+                Column(
+                    column_name.lower().replace(" ", "_"),
+                    column_type(**type_kwargs),
+                    *col_extra_args,
+                    **col_kwargs,
+                )
+            )
+        return all_columns
 
     def __get_entry_sets_from_fm_records(self, records, layout):
         """Given a dataframe of FileMaker records and the name of the layout they came from,
@@ -275,7 +357,47 @@ class FileMakerToSQL:
 
         Returns: A dictionary of lists of new entries to add
         """
-        return {}
+        entry_sets = {}
+        column_python_types = {
+            column_name: self.__get_python_type_for_column(
+                records[column_name], layout, column_name
+            )
+            for column_name in records.columns
+        }
+        for _, row in records.iterrows():
+            entry = {}
+            for column_name in records.columns:
+                val = row[column_name]
+                if val in ("", " ", "N/A", "?"):
+                    continue
+                # some custom adjustments below
+                if (
+                    type(val) == str
+                    and column_name == "PreAmp Output Power"
+                    and "-" in val
+                ):
+                    oldval = val
+                    val = str(
+                        0.5 * (float(val.split("-")[0]) + float(val.split("-")[1]))
+                    )
+                    self.logger.warning(
+                        "Adjusted %s value from %s to %s", column_name, oldval, val
+                    )
+                if column_python_types[column_name] == datetime.datetime:
+                    sqlval = datetime.datetime.strptime(val, "%m/%d/%Y")
+                else:
+                    try:
+                        sqlval = column_python_types[column_name](val)
+                    except:
+                        print(f"val = {val}, colname = {column_name}")
+                        raise
+                    sqlval = column_python_types[column_name](val)
+                entry[column_name.lower().replace(" ", "_")] = sqlval
+            keysetstr = str(set(list(entry.keys())))
+            if keysetstr not in entry_sets:
+                entry_sets[keysetstr] = []
+            entry_sets[keysetstr].append(entry)
+        return entry_sets
 
 
 def main(args=None):
