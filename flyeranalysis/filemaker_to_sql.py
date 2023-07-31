@@ -186,15 +186,15 @@ class FileMakerToSQL:
             try:
                 with self.engine.connect() as conn:
                     for entry_list in entry_sets.values():
-                        if tablename == "launch_package":
-                            for entry in entry_list:
-                                n_new_entries += 1
-                                _ = conn.execute(insert(new_table), [entry])
-                                conn.commit()
-                        else:
-                            n_new_entries += len(entry_list)
-                            _ = conn.execute(insert(new_table), entry_list)
-                        conn.commit()
+                        # if tablename == "launch_package":
+                        #     for entry in entry_list:
+                        #         n_new_entries += 1
+                        #         _ = conn.execute(insert(new_table), [entry])
+                        #         conn.commit()
+                        # else:
+                        n_new_entries += len(entry_list)
+                        _ = conn.execute(insert(new_table), entry_list)
+                    conn.commit()
             except Exception as exc:
                 self.__log_and_raise_exception(
                     RuntimeError,
