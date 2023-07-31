@@ -334,8 +334,9 @@ class FileMakerToSQL:
                 if column_name.lower().replace(" ", "_") in (
                     "glass_name",
                     "glass_name_reference",
+                    "program_name",
                 ):
-                    type_kwargs["length"] = 50
+                    type_kwargs["length"] = 100
                 else:
                     type_kwargs["length"] = records[column_name].str.len().max()
             # append the new column
