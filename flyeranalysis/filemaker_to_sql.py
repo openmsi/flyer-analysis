@@ -374,6 +374,8 @@ class FileMakerToSQL:
             entry = {}
             for column_name in records.columns:
                 val = row[column_name]
+                if isinstance(val,str):
+                    val = val.strip()
                 if val in ("", " ", "N/A", "?"):
                     continue
                 # skipping one entry that's missing a correspondence
@@ -400,7 +402,7 @@ class FileMakerToSQL:
                     sqlval = datetime.datetime.strptime(val, "%m/%d/%Y")
                 else:
                     try:
-                        sqlval = column_python_types[column_name](val)
+                        sqlval = column_python_types[column_name]()
                     except:
                         print(f"val = {val}, colname = {column_name}")
                         raise
