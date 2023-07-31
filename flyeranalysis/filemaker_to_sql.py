@@ -334,6 +334,7 @@ class FileMakerToSQL:
                 if column_name.lower().replace(" ", "_") in (
                     "glass_name",
                     "glass_name_reference",
+                    "launch_id"
                 ):
                     type_kwargs["length"] = 256
                 else:
