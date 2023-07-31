@@ -383,7 +383,7 @@ class FileMakerToSQL:
                 if (
                     layout == "Experiment"
                     and column_name == "Launch ID"
-                    and val in ("F134-R3C1", "F151-R7C1")
+                    and val in ("F134-R3C1", "F151-R3C3-Spacer-Sample")
                 ):
                     continue
                 # some custom adjustments below
