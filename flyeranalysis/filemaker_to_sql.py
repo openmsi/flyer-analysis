@@ -331,7 +331,13 @@ class FileMakerToSQL:
             column_type = self.TYPE_MAP[column_python_type]
             type_kwargs = {}
             if column_type == String:
-                type_kwargs["length"] = records[column_name].str.len().max()
+                if column_name.lower().replace(" ", "_") in (
+                    "glass_name",
+                    "glass_name_reference",
+                ):
+                    type_kwargs["length"] = 50
+                else:
+                    type_kwargs["length"] = records[column_name].str.len().max()
             # append the new column
             all_columns.append(
                 Column(
