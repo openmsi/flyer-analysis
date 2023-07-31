@@ -12,6 +12,7 @@ import logging
 import json
 import getpass
 import datetime
+import warnings
 from argparse import ArgumentParser
 from sqlalchemy import (
     create_engine,
@@ -31,7 +32,20 @@ import fmrest
 class FileMakerToSQL:
     """Manages translating FileMaker DB layouts/entries to SQL DB tables/rows
 
-    TODO:finish this docstring"""
+    Args:
+        logger_stream_level:
+            level for logger stream handler. If "NONE" no messages will be logged
+            to the stream.
+        logger_file_level:
+            level for logger file handler. If "NONE" no messages will be logged
+            to the file.
+        logfile_path:
+            path to the log file to use
+
+    Raises:
+        FileNotFoundError: the layout map json file doesn't exist
+        RuntimeError: the layout map json file couldn't be parsed into a dictionary
+    """
 
     # constants
     LOGGER_CHOICES = ["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NONE"]
@@ -140,12 +154,16 @@ class FileMakerToSQL:
         self.meta.reflect(bind=self.engine)
 
     def convert(self):
-        """TODO: write this docstring"""
+        """Dynamically creates tables and rows in them for every entry in each layout of
+        the FileMaker DB
+        """
         for layout, map_dict in self.fm_layout_map.items():
             self.logger.info('Adding entries from the "%s" FileMaker Layout', layout)
             tablename = map_dict["sql_table_name"]
             fms = self.__get_filemaker_server(layout_name=layout)
-            records_df = (fms.get_records(limit=100000)).to_df()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                records_df = (fms.get_records(limit=100000)).to_df()
             if records_df.shape[0] < 1:
                 warnmsg = (
                     f"WARNING: found {records_df.shape[0]} records in the "
@@ -260,7 +278,9 @@ class FileMakerToSQL:
                 layout=layout_name,
                 **self.FMREST_SERVER_EXTRA_KWARGS,
             )
-            fms.login()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                fms.login()
         except Exception as exc:
             errmsg = (
                 "ERROR: failed to authenticate to the FileMaker Database "
