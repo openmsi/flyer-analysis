@@ -85,6 +85,7 @@
         "pk_key": "Launch ID",
         "custom_columns": {
             "Date": ["astype-datetime"],
+            "Sample Name": ["fk-sample.sample_name"],
             "Spacer Type": ["fk-spacer.spacer_name"],
             "Flyer ID": ["fk-flyer_stack.flyer_id"],
             "recordId": ["not_null", "unique"],

@@ -179,10 +179,13 @@ class FileMakerToSQL:
             )
             self.meta.create_all(bind=self.engine, tables=[new_table])
             entry_sets = self.__get_entry_sets_from_fm_records(records_df, layout)
+            n_new_entries = 0
             with self.engine.connect() as conn:
                 for entry_list in entry_sets.values():
+                    n_new_entries+=len(entry_list)
                     _ = conn.execute(insert(new_table), entry_list)
                 conn.commit()
+            self.logger.debug(f"Added {n_new_entries} entries to the {tablename} table")
         self.logger.info("Done!")
 
     @classmethod
@@ -409,6 +412,12 @@ class FileMakerToSQL:
                         "F151-R3C3-Spacer-Sample",
                         "F151-R5C7-Spacer-Sample",
                     )
+                ):
+                    continue
+                if (
+                    layout == "Launch Package"
+                    and column_name == "Sample Name"
+                    and val in ("BMG")
                 ):
                     continue
                 # some custom adjustments below
