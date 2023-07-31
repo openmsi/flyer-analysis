@@ -334,7 +334,7 @@ class FileMakerToSQL:
                 if column_name.lower().replace(" ", "_") in (
                     "glass_name",
                     "glass_name_reference",
-                    "launch_id"
+                    "launch_id",
                 ):
                     type_kwargs["length"] = 256
                 else:
@@ -375,15 +375,20 @@ class FileMakerToSQL:
             entry = {}
             for column_name in records.columns:
                 val = row[column_name]
-                if isinstance(val,str):
+                if isinstance(val, str):
                     val = val.strip()
                 if val in ("", " ", "N/A", "?"):
                     continue
-                # skipping one entry that's missing a correspondence
+                # skipping entries missing launch ID correspondences
                 if (
                     layout == "Experiment"
                     and column_name == "Launch ID"
-                    and val in ("F134-R3C1", "F151-R3C3-Spacer-Sample")
+                    and val
+                    in (
+                        "F134-R3C1",
+                        "F151-R3C3-Spacer-Sample",
+                        "F151-R5C7-Spacer-Sample",
+                    )
                 ):
                     continue
                 # some custom adjustments below
