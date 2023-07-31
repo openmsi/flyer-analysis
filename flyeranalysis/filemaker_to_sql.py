@@ -202,7 +202,7 @@ class FileMakerToSQL:
                     raise_from=exc,
                 )
             self.logger.debug(
-                "Added {%s} entries to the {%s} table", n_new_entries, tablename
+                "Added %s entries to the %s table", n_new_entries, tablename
             )
         self.logger.info("Done!")
 
@@ -351,7 +351,6 @@ class FileMakerToSQL:
             # skip any columns that should be ignored
             if "ignore" in col_uniques:
                 continue
-            # print(f"{column_name} ({type(records[column_name].iloc[0])})")
             # set the args for the column and type constructors
             col_extra_args = []
             col_kwargs = {}
@@ -435,7 +434,7 @@ class FileMakerToSQL:
                 if (
                     layout == "Launch Package"
                     and column_name == "Sample Name"
-                    and val in ("BMG")
+                    and val in ("BMG", "Nb/Ti (46.5%/53.5%")
                 ):
                     continue
                 # some custom adjustments below
