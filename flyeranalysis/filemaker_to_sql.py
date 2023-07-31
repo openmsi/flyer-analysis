@@ -156,6 +156,9 @@ class FileMakerToSQL:
     def convert(self):
         """Dynamically creates tables and rows in them for every entry in each layout of
         the FileMaker DB
+
+        Raises:
+            RuntimeError: Something went wrong when trying to add entries to a table
         """
         for layout, map_dict in self.fm_layout_map.items():
             self.logger.info('Adding entries from the "%s" FileMaker Layout', layout)
@@ -180,12 +183,27 @@ class FileMakerToSQL:
             self.meta.create_all(bind=self.engine, tables=[new_table])
             entry_sets = self.__get_entry_sets_from_fm_records(records_df, layout)
             n_new_entries = 0
-            with self.engine.connect() as conn:
-                for entry_list in entry_sets.values():
-                    n_new_entries+=len(entry_list)
-                    _ = conn.execute(insert(new_table), entry_list)
-                conn.commit()
-            self.logger.debug(f"Added {n_new_entries} entries to the {tablename} table")
+            try:
+                with self.engine.connect() as conn:
+                    for entry_list in entry_sets.values():
+                        if tablename == "launch_package":
+                            for entry in entry_list:
+                                n_new_entries += 1
+                                _ = conn.execute(insert(new_table), [entry])
+                                conn.commit()
+                        else:
+                            n_new_entries += len(entry_list)
+                            _ = conn.execute(insert(new_table), entry_list)
+                        conn.commit()
+            except Exception as exc:
+                self.__log_and_raise_exception(
+                    RuntimeError,
+                    f"ERROR: failed adding entries to the {tablename} table!",
+                    raise_from=exc,
+                )
+            self.logger.debug(
+                "Added {%s} entries to the {%s} table", n_new_entries, tablename
+            )
         self.logger.info("Done!")
 
     @classmethod
