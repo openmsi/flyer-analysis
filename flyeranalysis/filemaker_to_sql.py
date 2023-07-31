@@ -335,8 +335,9 @@ class FileMakerToSQL:
                     "glass_name",
                     "glass_name_reference",
                     "program_name",
+                    "cutting_procedure_name",
                 ):
-                    type_kwargs["length"] = 100
+                    type_kwargs["length"] = 256
                 else:
                     type_kwargs["length"] = records[column_name].str.len().max()
             # append the new column
