@@ -434,7 +434,7 @@ class FileMakerToSQL:
                 if (
                     layout == "Launch Package"
                     and column_name == "Sample Name"
-                    and val in ("BMG", "Nb/Ti (46.5%/53.5%")
+                    and val in ("BMG", "Nb/Ti (46.5%/53.5%", "Nb/Ti (46.5%/53.5%)")
                 ):
                     continue
                 # some custom adjustments below
