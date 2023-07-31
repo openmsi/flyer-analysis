@@ -376,9 +376,12 @@ class FileMakerToSQL:
                 val = row[column_name]
                 if val in ("", " ", "N/A", "?"):
                     continue
+                # skipping one entry that's missing a correspondence
+                if layout=="Experiment" and column_name=="Launch ID" and val=="F134-R3C1":
+                    continue
                 # some custom adjustments below
                 if (
-                    type(val) == str
+                    isinstance(val,str)
                     and column_name == "PreAmp Output Power"
                     and "-" in val
                 ):
