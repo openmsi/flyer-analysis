@@ -88,7 +88,6 @@
             "Sample Name": ["fk-sample.sample_name"],
             "Spacer Type": ["fk-spacer.spacer_name"],
             "Flyer ID": ["fk-flyer_stack.flyer_id"],
-            "Spacer Cutting Program": ["fk-spacer_cutting_program.program_name"],
             "recordId": ["not_null", "unique"],
             "modId": ["ignore"]
         }
