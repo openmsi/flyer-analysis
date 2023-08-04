@@ -25,6 +25,7 @@ from sqlalchemy import (
     Integer,
     ForeignKey,
     DateTime,
+    text,
 )
 import fmrest
 
@@ -388,6 +389,15 @@ class FileMakerToSQL:
                     **col_kwargs,
                 )
             )
+        # for the experiment layout, add an extra column for the metadata_links FK
+        if layout=="Experiment":
+            all_columns.append(
+                Column(
+                    "video_metadata_link_ID",
+                    Integer,
+                    ForeignKey("metadata_links.ID"),
+                )
+            )
         return all_columns
 
     def __get_entry_sets_from_fm_records(self, records, layout):
@@ -460,6 +470,33 @@ class FileMakerToSQL:
                         raise
                     sqlval = column_python_types[column_name](val)
                 entry[column_name.lower().replace(" ", "_")] = sqlval
+            # for the experiment layout, add the metadata link FK
+            if layout=="Experiment":
+                constraints = []
+                if "experiment_day_counter" in entry:
+                    constraints.append(f"experiment_day_counter = {entry['experiment_day_counter']}")
+                if "camera_filename" in entry:
+                    constraints.append(f"camera_filename = {entry['camera_filename']}")
+                if len(constraints)>0:
+                    query = f"""
+                        SELECT ID FROM metadata_links
+                        WHERE datestamp = {entry["date"]}
+                    """
+                    if len(constraints)==1:
+                        query+=f" AND {constraints[0]}"
+                    elif len(constraints)==2:
+                        query+=f" AND ({' OR '.join(constraints)})"
+                    with self.engine.connect() as conn:
+                        res = conn.execute(text(query)).all()
+                    if len(res)==1:
+                        entry["video_metadata_link_ID"] = res[0].ID
+                    elif len(res)>1:
+                        warnmsg = (
+                            f"WARNING: found {len(res)} matching metadata links "
+                            f"for experiment entry {entry}. "
+                            "This entry will not have a metadata link added!"
+                        )
+                        self.logger.warning(warnmsg)
             keysetstr = str(set(list(entry.keys())))
             if keysetstr not in entry_sets:
                 entry_sets[keysetstr] = []
