@@ -497,15 +497,15 @@ class FileMakerToSQL:
                     if (res is None) or (len(res) == 0):
                         with self.engine.connect() as conn:
                             res = conn.execute(or_stmt).all()
-                    if len(res) == 1:
+                    if (res is not None) and (len(res) > 0):
                         entry["video_metadata_link_ID"] = res[0].ID
-                    elif len(res) > 1:
-                        warnmsg = (
-                            f"WARNING: found {len(res)} matching metadata links "
-                            f"for experiment entry {entry}. "
-                            "This entry will not have a metadata link added!"
-                        )
-                        self.logger.warning(warnmsg)
+                    # elif len(res) > 1:
+                    #     warnmsg = (
+                    #         f"WARNING: found {len(res)} matching metadata links "
+                    #         f"for experiment entry {entry}. "
+                    #         "This entry will not have a metadata link added!"
+                    #     )
+                    #     self.logger.warning(warnmsg)
             keysetstr = str(set(list(entry.keys())))
             if keysetstr not in entry_sets:
                 entry_sets[keysetstr] = []
