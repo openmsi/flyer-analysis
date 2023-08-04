@@ -468,13 +468,18 @@ class FileMakerToSQL:
                         links_table.c.camera_filename == entry["camera_filename"]
                     )
                 if len(constraints) > 0:
-                    where_clause = None
+                    and_where_clause = None
+                    or_where_clause = None
                     if len(constraints) == 1:
-                        where_clause = and_(
+                        and_where_clause = and_(
                             links_table.c.datestamp == entry["date"], constraints[0]
                         )
+                        or_where_clause = and_where_clause
                     elif len(constraints) == 2:
-                        where_clause = and_(
+                        and_where_clause = and_(
+                            links_table.c.datestamp == entry["date"], *constraints
+                        )
+                        or_where_clause = and_(
                             links_table.c.datestamp == entry["date"], or_(*constraints)
                         )
                     else:
@@ -485,9 +490,13 @@ class FileMakerToSQL:
                                 "to the metadata_links table (expected either 1 or 2)!"
                             ),
                         )
-                    stmt = select(links_table.c.ID).where(where_clause)
+                    and_stmt = select(links_table.c.ID).where(and_where_clause)
+                    or_stmt = select(links_table.c.ID).where(or_where_clause)
                     with self.engine.connect() as conn:
-                        res = conn.execute(stmt).all()
+                        res = conn.execute(and_stmt).all()
+                    if len(res) == 0:
+                        with self.engine.connect() as conn:
+                            res = conn.execute(or_stmt).first()
                     if len(res) == 1:
                         entry["video_metadata_link_ID"] = res[0].ID
                     elif len(res) > 1:
