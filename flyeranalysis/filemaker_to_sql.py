@@ -496,7 +496,7 @@ class FileMakerToSQL:
                         res = conn.execute(and_stmt).all()
                     if (res is None) or (len(res) == 0):
                         with self.engine.connect() as conn:
-                            res = conn.execute(or_stmt).first()
+                            res = conn.execute(or_stmt).all()
                     if len(res) == 1:
                         entry["video_metadata_link_ID"] = res[0].ID
                     elif len(res) > 1:
