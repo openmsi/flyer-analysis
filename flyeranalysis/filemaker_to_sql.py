@@ -471,11 +471,11 @@ class FileMakerToSQL:
                     where_clause = None
                     if len(constraints) == 1:
                         where_clause = and_(
-                            links_table.c.datestamp == entry, constraints[0]
+                            links_table.c.datestamp == entry["date"], constraints[0]
                         )
                     elif len(constraints) == 2:
                         where_clause = and_(
-                            links_table.c.datestamp == entry, or_(*constraints)
+                            links_table.c.datestamp == entry["date"], or_(*constraints)
                         )
                     else:
                         self.__log_and_raise_exception(
@@ -485,7 +485,6 @@ class FileMakerToSQL:
                                 "to the metadata_links table (expected either 1 or 2)!"
                             ),
                         )
-                    print(where_clause)
                     stmt = select(links_table.c.ID).where(where_clause)
                     with self.engine.connect() as conn:
                         res = conn.execute(stmt).all()
