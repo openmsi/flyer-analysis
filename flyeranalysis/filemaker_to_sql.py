@@ -390,7 +390,7 @@ class FileMakerToSQL:
                 )
             )
         # for the experiment layout, add an extra column for the metadata_links FK
-        if layout=="Experiment":
+        if layout == "Experiment":
             all_columns.append(
                 Column(
                     "video_metadata_link_ID",
@@ -429,24 +429,6 @@ class FileMakerToSQL:
                     val = val.strip()
                 if val in ("", " ", "N/A", "?"):
                     continue
-                # skipping entries missing launch ID correspondences
-                if (
-                    layout == "Experiment"
-                    and column_name == "Launch ID"
-                    and val
-                    in (
-                        "F134-R3C1",
-                        "F151-R3C3-Spacer-Sample",
-                        "F151-R5C7-Spacer-Sample",
-                    )
-                ):
-                    continue
-                if (
-                    layout == "Launch Package"
-                    and column_name == "Sample Name"
-                    and val in ("BMG", "Nb/Ti (46.5%/53.5%", "Nb/Ti (46.5%/53.5%)")
-                ):
-                    continue
                 # some custom adjustments below
                 if (
                     isinstance(val, str)
@@ -471,26 +453,28 @@ class FileMakerToSQL:
                     sqlval = column_python_types[column_name](val)
                 entry[column_name.lower().replace(" ", "_")] = sqlval
             # for the experiment layout, add the metadata link FK
-            if layout=="Experiment":
+            if layout == "Experiment":
                 constraints = []
                 if "experiment_day_counter" in entry:
-                    constraints.append(f"experiment_day_counter = {entry['experiment_day_counter']}")
+                    constraints.append(
+                        f"experiment_day_counter = {entry['experiment_day_counter']}"
+                    )
                 if "camera_filename" in entry:
                     constraints.append(f"camera_filename = {entry['camera_filename']}")
-                if len(constraints)>0:
+                if len(constraints) > 0:
                     query = f"""
                         SELECT ID FROM metadata_links
                         WHERE datestamp = {entry["date"]}
                     """
-                    if len(constraints)==1:
-                        query+=f" AND {constraints[0]}"
-                    elif len(constraints)==2:
-                        query+=f" AND ({' OR '.join(constraints)})"
+                    if len(constraints) == 1:
+                        query += f" AND {constraints[0]}"
+                    elif len(constraints) == 2:
+                        query += f" AND ({' OR '.join(constraints)})"
                     with self.engine.connect() as conn:
                         res = conn.execute(text(query)).all()
-                    if len(res)==1:
+                    if len(res) == 1:
                         entry["video_metadata_link_ID"] = res[0].ID
-                    elif len(res)>1:
+                    elif len(res) > 1:
                         warnmsg = (
                             f"WARNING: found {len(res)} matching metadata links "
                             f"for experiment entry {entry}. "
