@@ -485,9 +485,10 @@ class FileMakerToSQL:
                                 "to the metadata_links table (expected either 1 or 2)!"
                             ),
                         )
-                    query = select(links_table.c.ID).where(where_clause)
+                    print(where_clause)
+                    stmt = select(links_table.c.ID).where(where_clause)
                     with self.engine.connect() as conn:
-                        res = conn.execute(query).all()
+                        res = conn.execute(stmt).all()
                     if len(res) == 1:
                         entry["video_metadata_link_ID"] = res[0].ID
                     elif len(res) > 1:
