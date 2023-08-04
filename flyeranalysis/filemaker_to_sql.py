@@ -494,7 +494,7 @@ class FileMakerToSQL:
                     or_stmt = select(links_table.c.ID).where(or_where_clause)
                     with self.engine.connect() as conn:
                         res = conn.execute(and_stmt).all()
-                    if len(res) == 0:
+                    if (res is None) or (len(res) == 0):
                         with self.engine.connect() as conn:
                             res = conn.execute(or_stmt).first()
                     if len(res) == 1:
