@@ -25,7 +25,9 @@ from sqlalchemy import (
     Integer,
     ForeignKey,
     DateTime,
-    text,
+    select,
+    and_,
+    or_,
 )
 import fmrest
 
@@ -454,23 +456,38 @@ class FileMakerToSQL:
                 entry[column_name.lower().replace(" ", "_")] = sqlval
             # for the experiment layout, add the metadata link FK
             if layout == "Experiment":
+                links_table = self.meta.tables["metadata_links"]
                 constraints = []
                 if "experiment_day_counter" in entry:
                     constraints.append(
-                        f"experiment_day_counter = {entry['experiment_day_counter']}"
+                        links_table.c.experiment_day_counter
+                        == entry["experiment_day_counter"]
                     )
                 if "camera_filename" in entry:
-                    constraints.append(f"camera_filename = {entry['camera_filename']}")
-                if len(constraints) > 0:
-                    query = (
-                        f"SELECT ID FROM metadata_links WHERE datestamp = {entry['date']}"
+                    constraints.append(
+                        links_table.c.camera_filename == entry["camera_filename"]
                     )
+                if len(constraints) > 0:
+                    where_clause = None
                     if len(constraints) == 1:
-                        query += f" AND {constraints[0]}"
+                        where_clause = and_(
+                            links_table.c.datestamp == entry, constraints[0]
+                        )
                     elif len(constraints) == 2:
-                        query += f" AND ({' OR '.join(constraints)})"
+                        where_clause = and_(
+                            links_table.c.datestamp == entry, or_(*constraints)
+                        )
+                    else:
+                        self.__log_and_raise_exception(
+                            RuntimeError,
+                            (
+                                f"Got {len(constraints)} constraints for a query "
+                                "to the metadata_links table (expected either 1 or 2)!"
+                            ),
+                        )
+                    query = select(links_table.c.ID).where(where_clause)
                     with self.engine.connect() as conn:
-                        res = conn.execute(text(query)).all()
+                        res = conn.execute(query).all()
                     if len(res) == 1:
                         entry["video_metadata_link_ID"] = res[0].ID
                     elif len(res) > 1:
