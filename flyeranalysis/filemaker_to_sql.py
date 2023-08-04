@@ -462,10 +462,9 @@ class FileMakerToSQL:
                 if "camera_filename" in entry:
                     constraints.append(f"camera_filename = {entry['camera_filename']}")
                 if len(constraints) > 0:
-                    query = f"""
-                        SELECT ID FROM metadata_links
-                        WHERE datestamp = {entry["date"]}
-                    """
+                    query = (
+                        f"SELECT ID FROM metadata_links WHERE datestamp = {entry['date']}"
+                    )
                     if len(constraints) == 1:
                         query += f" AND {constraints[0]}"
                     elif len(constraints) == 2:
