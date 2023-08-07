@@ -28,6 +28,7 @@ from sqlalchemy import (
     select,
     and_,
     or_,
+    func,
 )
 import fmrest
 
@@ -456,62 +457,69 @@ class FileMakerToSQL:
                 entry[column_name.lower().replace(" ", "_")] = sqlval
             # for the experiment layout, add the metadata link FK
             if layout == "Experiment":
-                links_table = self.meta.tables["metadata_links"]
-                constraints = []
-                if "experiment_day_counter" in entry:
-                    constraints.append(
-                        links_table.c.experiment_day_counter
-                        == entry["experiment_day_counter"]
-                    )
-                if "camera_filename" in entry:
-                    constraints.append(
-                        links_table.c.camera_filename == entry["camera_filename"]
-                    )
-                if len(constraints) > 0:
-                    and_where_clause = None
-                    or_where_clause = None
-                    if len(constraints) == 1:
-                        and_where_clause = and_(
-                            links_table.c.datestamp == entry["date"], constraints[0]
-                        )
-                        or_where_clause = and_where_clause
-                    elif len(constraints) == 2:
-                        and_where_clause = and_(
-                            links_table.c.datestamp == entry["date"], *constraints
-                        )
-                        or_where_clause = and_(
-                            links_table.c.datestamp == entry["date"], or_(*constraints)
-                        )
-                    else:
-                        self.__log_and_raise_exception(
-                            RuntimeError,
-                            (
-                                f"Got {len(constraints)} constraints for a query "
-                                "to the metadata_links table (expected either 1 or 2)!"
-                            ),
-                        )
-                    and_stmt = select(links_table.c.ID).where(and_where_clause)
-                    or_stmt = select(links_table.c.ID).where(or_where_clause)
-                    with self.engine.connect() as conn:
-                        res = conn.execute(and_stmt).all()
-                    if (res is None) or (len(res) == 0):
-                        with self.engine.connect() as conn:
-                            res = conn.execute(or_stmt).all()
-                    if (res is not None) and (len(res) > 0):
-                        entry["video_metadata_link_ID"] = res[0].ID
-                    # elif len(res) > 1:
-                    #     warnmsg = (
-                    #         f"WARNING: found {len(res)} matching metadata links "
-                    #         f"for experiment entry {entry}. "
-                    #         "This entry will not have a metadata link added!"
-                    #     )
-                    #     self.logger.warning(warnmsg)
+                metadata_link_id = self.__get_experiment_metadata_link_id(entry)
+                if metadata_link_id is not None:
+                    entry["video_metadata_link_ID"] = metadata_link_id
             keysetstr = str(set(list(entry.keys())))
             if keysetstr not in entry_sets:
                 entry_sets[keysetstr] = []
             entry_sets[keysetstr].append(entry)
         return entry_sets
 
+    def __get_experiment_metadata_link_id(self, entry):
+        """TODO: write this docstring"""
+        links_table = self.meta.tables["metadata_links"]
+        results_table = self.meta.tables["flyer_analysis_results"]
+        constraints = [
+            getattr(links_table.c, colname) == entry[colname]
+            for colname in ("experiment_day_counter", "camera_filename")
+            if colname in entry
+        ]
+        if len(constraints) < 1:
+            return None
+        where_clause = None
+        if len(constraints) == 1:
+            where_clause = and_(
+                links_table.c.datestamp == entry["date"], constraints[0]
+            )
+        elif len(constraints) == 2:
+            where_clause = and_(
+                links_table.c.datestamp == entry["date"], or_(*constraints)
+            )
+        else:
+            self.__log_and_raise_exception(
+                RuntimeError,
+                (
+                    f"Got {len(constraints)} constraints for a query "
+                    "to the metadata_links table (expected either 1 or 2)!"
+                ),
+            )
+        stmt = select(links_table.c.ID).where(where_clause)
+        with self.engine.connect() as conn:
+            results = conn.execute(stmt).all()
+        if (results is None) or len(results) < 1:
+            return None
+        if len(results) == 1:
+            return results[0].ID
+        max_results = -1
+        best_link_id = None
+        for res in results:
+            stmt = (
+                select(func.count())
+                .select_from(
+                    results_table.join(
+                        links_table,
+                        results_table.c.metadata_link_ID == links_table.c.ID,
+                    )
+                )
+                .where(results_table.c.metadata_link_ID == res.ID)
+            )
+            with self.engine.connect() as conn:
+                n_linked_results = conn.execute(stmt).all()[0][0]
+            if n_linked_results > max_results:
+                max_results = n_linked_results
+                best_link_id = res.ID
+        return best_link_id
 
 def main(args=None):
     """Run the helper functions above to convert everything in
