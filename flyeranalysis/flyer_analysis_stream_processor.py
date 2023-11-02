@@ -22,7 +22,7 @@ from .flyer_detection import Flyer_Detection, FlyerCharacteristics
 
 class FlyerAnalysisStreamProcessor(DataFileStreamProcessor):
     """
-    A class to run flyer analysis for all .bmp images in a topic
+    Run flyer analysis for all .bmp images in a topic
     and add their results to an output file or database
 
     The original .bmp image and the analysis result image will be

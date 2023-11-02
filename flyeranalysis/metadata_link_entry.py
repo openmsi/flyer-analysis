@@ -22,7 +22,7 @@ class MetadataLinkEntry(ORMBase):
 
     ID = mapped_column(Integer, primary_key=True)
     datestamp = mapped_column(DateTime)
-    experiment_day_counter = mapped_column(String)
+    experiment_day_counter = mapped_column(Integer)
     camera_filename = mapped_column(String)
 
     def __init__(self, datestamp, experiment_day_counter, camera_filename):
@@ -46,16 +46,16 @@ class MetadataLinkEntry(ORMBase):
         if TC_FILENAME_REGEX.match(rel_filepath.name):
             date_str = rel_filepath.name.split("--")[1]
             rdict["datestamp"] = datetime.datetime.strptime(date_str, "%Y%m%d")
-            rdict["experiment_day_counter"] = rel_filepath.name[: -len(".bmp")].split(
-                "--"
-            )[-1]
+            rdict["experiment_day_counter"] = int(
+                rel_filepath.name[: -len(".bmp")].split("--")[-1]
+            )
         parts = rel_filepath.parts
         # look for exactly one thing in the path like "HS--(datestamp)--(counter)"
         hs_parts = [part for part in parts if HS_TAG_REGEX.match(part)]
         if len(hs_parts) == 1:
             date_str = hs_parts[0].split("--")[1]
             rdict["datestamp"] = datetime.datetime.strptime(date_str, "%Y%m%d")
-            rdict["experiment_day_counter"] = hs_parts[0].split("--")[-1]
+            rdict["experiment_day_counter"] = int(hs_parts[0].split("--")[-1])
         # next look for exactly one thing in the path like "yyyy_mm_dd"
         datestamp_parts = [part for part in parts if DATESTAMP_REGEX.match(part)]
         if len(datestamp_parts) == 1:

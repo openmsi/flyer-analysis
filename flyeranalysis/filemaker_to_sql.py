@@ -467,14 +467,22 @@ class FileMakerToSQL:
         return entry_sets
 
     def __get_experiment_metadata_link_id(self, entry):
-        """TODO: write this docstring"""
+        """Given an "Experiment" entry, returns the ID of a metadata_links entry
+        corresponding to the experiment based on its datestamp, camera filename,
+        and experiment day counter
+        """
         links_table = self.meta.tables["metadata_links"]
         results_table = self.meta.tables["flyer_analysis_results"]
-        constraints = [
-            getattr(links_table.c, colname) == entry[colname]
-            for colname in ("experiment_day_counter", "camera_filename")
-            if colname in entry
-        ]
+        constraints = []
+        if "experiment_day_counter" in entry:
+            constraints.append(
+                links_table.c.experiment_day_counter
+                == int(entry["experiment_day_counter"])
+            )
+        if "camera_filename" in entry:
+            constraints.append(
+                links_table.c.camera_filename == entry["camera_filename"]
+            )
         if len(constraints) < 1:
             return None
         where_clause = None
@@ -505,7 +513,7 @@ class FileMakerToSQL:
         best_link_id = None
         for res in results:
             stmt = (
-                select(func.count())
+                select(func.count())  # pylint: disable=not-callable
                 .select_from(
                     results_table.join(
                         links_table,
@@ -520,6 +528,7 @@ class FileMakerToSQL:
                 max_results = n_linked_results
                 best_link_id = res.ID
         return best_link_id
+
 
 def main(args=None):
     """Run the helper functions above to convert everything in
