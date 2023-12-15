@@ -6,3 +6,4 @@ PIL
 IPython
 sqlachemy
 ipykernel
+gradio==3.44.1
