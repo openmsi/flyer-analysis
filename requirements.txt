@@ -8,3 +8,6 @@ IPython
 SQLalchemy
 ipykernel
 gradio
+pymssql
+pytest-shutil
+scikit-image
