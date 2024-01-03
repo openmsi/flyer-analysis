@@ -7,7 +7,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.preprocessing import StandardScaler
 from sklearn import svm
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, matthews_corrcoef
 from sklearn.model_selection import GridSearchCV
 
 
@@ -124,10 +124,25 @@ def main():
 
     param_grid = {"C": [0.1, 1, 10, 100], "kernel": ["linear", "rbf", "poly"]}
 
-    grid_search = GridSearchCV(svm.SVC(), param_grid, cv=5)
-    grid_search.fit(X_train, y_train)
+    svr_model = GridSearchCV(svm.SVC(), param_grid, cv=5)
 
-    best_params = grid_search.best_params_
+    svr_model.fit(X_train_scaled, Y_train)
+
+    Y_val_pred = svr_model.predict(X_val_scaled)
+    val_accuracy = accuracy_score(Y_val, Y_val_pred)
+    val_mcc = matthews_corrcoef(Y_val, Y_val_pred)
+
+    print(f"Validation Accuracy: {val_accuracy}")
+    print(f"Validation Mathews coefficient: {val_mcc}")
+
+    Y_test_pred = svr_model.predict(X_test_scaled)
+    test_accuracy = accuracy_score(Y_test, Y_test_pred)
+    test_mcc = matthews_corrcoef(Y_test, Y_test_pred)
+
+    print(f"Test Accuracy: {test_accuracy}")
+    print(f"Test Mathews coefficient: {test_mcc}")
+
+    best_params = svr_model.best_params_
 
 
 if __name__ == "__main__":
