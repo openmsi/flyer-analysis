@@ -1,5 +1,7 @@
 pathlib
+imageio
 matplotlib
+opencv-python
 numpy
 Pillow
 IPython
