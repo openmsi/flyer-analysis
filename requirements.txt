@@ -5,7 +5,7 @@ opencv-python
 numpy
 Pillow
 IPython
-SQLalchemy
+SQLAlchemy>=2.0
 ipykernel
 gradio
 pymssql
