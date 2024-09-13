@@ -36,3 +36,17 @@ If the connection string isn't given the relational DB won't be used and output 
 For both of these programs, you can add "`-h`" on the command line to see the full set of command line options and arguments available.
 
 The [notebooks](./notebooks/) folder contains several Jupyter notebooks that were used in developing and testing the programs above, and a few illustrating their results and giving examples of how to query the output database as well.
+
+#Next Steps (Current Shortcomings)
+A number of shortcomings in the current method are noted.  Specifically:
+
+* Geometric assumptions that the object is circular and in a 2D plane.
+* The algorithm is sensitive to noise and outliers.
+* Fitting struggles with partial occlusion of the flyer as well as * potential for deformed flyers and any perspective distortion of the experimental setup.
+* The method is not robust if there is uneven lighting or poor image contrast. 
+* The method has limited flexibility and really only works well for clearly defined, near-circular objects
+
+Next steps are to advance the algorithm to deal with some of this.  Specific plan is:
+
+* try RANSAC (Random Sample Consensus) for circle fitting with scikit-learn's RANSAC regressor (or a custom implementation for circle fitting, if needed). RANSAC fits geometric shapes by iteratively selecting random subsets of points and fitting the model to them. It’s especially useful when the data contains outliers or noise, or when only part of the circle is available. RANSAC is robust to outliers and noisy or incomplete data and can be tuned to find a circle even from a small arc.  RANSAC can be challenging because it requires selecting a proper threshold for outlier rejection and it may be slower because of its iterative approach.  
+* The new circle fitting method of H. Abdul-Rahman and N. Chernov found in [https://arxiv.org/pdf/1505.03795](https://arxiv.org/pdf/1505.03795). fast and numerically stable fitting, even in challenging conditions like small arcs or when large circles are involved. The algorithm is particularly adept at handling round-off errors and uses a gradient-based minimization with a Newton step to ensure rapid convergence and high precision. The approach is good for cases with partial circles or limited data. Not sure if there is a Python wrapped version of it yet, but some of their codes are here: [https://people.cas.uab.edu/~mosya/cl/CPPcircle.html](https://people.cas.uab.edu/~mosya/cl/CPPcircle.html). 
